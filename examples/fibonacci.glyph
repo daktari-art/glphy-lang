@@ -1,0 +1,10 @@
+# Fibonacci sequence in Glyph
+# Demonstrates pattern matching and recursion
+
+fibonacci:
+  [○ n] → [◯ n < 2] ─true─→ [○ 1]
+                    └false─→ [▷ add] ← [▷ fibonacci] ← [▷ subtract] ← [○ n] ← [○ 1]
+                            ← [▷ fibonacci] ← [▷ subtract] ← [○ n] ← [○ 2]
+
+main:
+  [○ 10] → [▷ fibonacci] → [⤶ print]
