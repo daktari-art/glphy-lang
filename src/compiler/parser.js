@@ -1,103 +1,92 @@
 export class GlyphParser {
     constructor() {
-        this.tokens = [];
-        this.current = 0;
+        this.symbols = {
+            '○': 'DATA_NODE', '□': 'TEXT_NODE', '△': 'LIST_NODE', '◇': 'BOOL_NODE',
+            '▷': 'FUNCTION_NODE', '⟳': 'LOOP_NODE', '◯': 'CONDITION_NODE', 
+            '⤶': 'OUTPUT_NODE', '⚡': 'ERROR_NODE', '🔄': 'ASYNC_NODE'
+        };
     }
 
     parse(source) {
-        this.tokens = this.tokenize(source);
-        return this.parseProgram();
-    }
-
-    tokenize(source) {
-        const tokens = [];
+        const ast = { type: 'Program', nodes: [], connections: [], labels: {} };
         const lines = source.split('\n');
-        
-        for (let line of lines) {
-            line = line.trim();
+        let currentLabel = 'main';
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
             if (!line || line.startsWith('#')) continue;
 
-            // Match nodes: [○ value], [▷ function], etc.
-            const nodeMatch = line.match(/\[([○□△◇▷⟳◯⤶⚡🔄])\s+([^\]]+)\]/g);
-            if (nodeMatch) {
-                nodeMatch.forEach(node => {
-                    const match = node.match(/\[([○□△◇▷⟳◯⤶⚡🔄])\s+([^\]]+)\]/);
-                    tokens.push({
-                        type: 'NODE',
-                        glyph: match[1],
-                        value: match[2].trim(),
-                        raw: node
-                    });
-                });
+            // Check for label
+            const labelMatch = line.match(/^(\w+):$/);
+            if (labelMatch) {
+                currentLabel = labelMatch[1];
+                ast.labels[currentLabel] = { start: i, nodes: [] };
+                continue;
             }
 
-            // Match connections
-            if (line.includes('→')) tokens.push({ type: 'FLOW', direction: 'right' });
-            if (line.includes('←')) tokens.push({ type: 'FLOW', direction: 'left' });
+            // Parse nodes and connections
+            this.parseLine(line, ast, currentLabel, i);
         }
 
-        return tokens;
+        return ast;
     }
 
-    parseProgram() {
-        const program = {
-            type: 'Program',
-            body: [],
-            connections: []
-        };
+    parseLine(line, ast, label, lineNum) {
+        // Extract all nodes from line
+        const nodeRegex = /\[([○□△◇▷⟳◯⤶⚡🔄])\s+([^\]]+)\]/g;
+        let match;
+        const lineNodes = [];
 
-        let i = 0;
-        while (i < this.tokens.length) {
-            const token = this.tokens[i];
-            
-            if (token.type === 'NODE') {
-                program.body.push(this.parseNode(token));
-            } else if (token.type === 'FLOW') {
-                program.connections.push({
-                    type: 'Connection',
-                    direction: token.direction,
-                    from: i > 0 ? this.tokens[i-1] : null,
-                    to: i < this.tokens.length - 1 ? this.tokens[i+1] : null
-                });
-            }
-            i++;
+        while ((match = nodeRegex.exec(line)) !== null) {
+            const node = {
+                id: `node_${lineNum}_${lineNodes.length}`,
+                type: this.symbols[match[1]] || 'UNKNOWN_NODE',
+                glyph: match[1],
+                value: this.parseValue(match[2].trim()),
+                label: label,
+                line: lineNum,
+                position: { x: lineNodes.length * 100, y: lineNum * 50 }
+            };
+            lineNodes.push(node);
+            ast.nodes.push(node);
         }
 
-        return program;
-    }
-
-    parseNode(token) {
-        return {
-            type: this.mapGlyphToType(token.glyph),
-            value: this.parseValue(token.value),
-            glyph: token.glyph,
-            id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        };
-    }
-
-    mapGlyphToType(glyph) {
-        const mapping = {
-            '○': 'DataNode',
-            '□': 'TextNode', 
-            '△': 'ListNode',
-            '◇': 'BoolNode',
-            '▷': 'FunctionNode',
-            '⟳': 'LoopNode',
-            '◯': 'ConditionNode',
-            '⤶': 'OutputNode',
-            '⚡': 'ErrorNode',
-            '🔄': 'AsyncNode'
-        };
-        return mapping[glyph] || 'UnknownNode';
+        // Parse connections between nodes
+        this.parseConnections(line, ast, lineNodes, lineNum);
     }
 
     parseValue(value) {
-        // Parse numbers, booleans, strings
+        // Parse numbers
         if (!isNaN(value)) return Number(value);
+        // Parse booleans
         if (value === 'true') return true;
         if (value === 'false') return false;
-        if (value.startsWith('"') && value.endsWith('"')) 
+        // Parse strings (remove quotes)
+        if ((value.startsWith('"') && value.endsWith('"')) || 
+            (value.startsWith("'") && value.endsWith("'"))) {
             return value.slice(1, -1);
+        }
+        // Return as string
         return value;
+    }
+
+    parseConnections(line, ast, nodes, lineNum) {
+        if (nodes.length < 2) return;
+
+        // Simple forward connections
+        for (let i = 0; i < nodes.length - 1; i++) {
+            ast.connections.push({
+                from: nodes[i].id,
+                to: nodes[i+1].id,
+                type: 'DATA_FLOW',
+                line: lineNum
+            });
+        }
+
+        // Parse explicit flow arrows
+        if (line.includes('→')) {
+            const arrowIndex = line.indexOf('→');
+            // Logic to connect nodes based on arrow position
+        }
     }
 }
