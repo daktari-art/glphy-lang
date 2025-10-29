@@ -1,0 +1,4 @@
+# Hello World in Glyph
+# The simplest Glyph program
+
+[□ "Hello, World!"] → [⤶ print]
