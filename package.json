@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "test": "node tests/runner.js",
-    "compile": "node src/cli.js"
+    "compile": "node src/cli.js compile",
+    "run": "node src/cli.js run",
+    "dev": "node --watch src/cli.js run"
   },
   "keywords": [
     "visual-programming",
@@ -18,9 +20,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/glyph-lang"
+    "url": "https://github.com/daktari-art/glphy-lang"
   },
   "bin": {
     "glyph": "./src/cli.js"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }
