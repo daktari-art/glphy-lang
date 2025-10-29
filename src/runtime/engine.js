@@ -2,99 +2,150 @@ export class GlyphEngine {
     constructor() {
         this.nodes = new Map();
         this.connections = [];
-        this.executionContext = new Map();
+        this.variables = new Map();
+        this.callStack = [];
+        this.output = [];
     }
 
     loadProgram(ast) {
+        this.ast = ast;
         this.nodes.clear();
-        this.connections = ast.connections || [];
-        
-        ast.body.forEach(node => {
-            this.nodes.set(node.id, {
-                ...node,
-                executed: false,
-                result: null,
-                error: null
-            });
+        this.connections = ast.connections;
+        this.variables.clear();
+        this.output = [];
+
+        // Register all nodes
+        ast.nodes.forEach(node => {
+            this.nodes.set(node.id, { ...node, executed: false, result: null });
         });
     }
 
-    async execute() {
-        console.log('🚀 Starting Glyph Execution...');
+    async execute(startLabel = 'main') {
+        console.log(`🚀 Executing Glyph program: ${startLabel}`);
         
-        // Simple linear execution for now
-        for (let [id, node] of this.nodes) {
-            if (!node.executed) {
-                try {
-                    const result = await this.executeNode(node);
-                    node.result = result;
-                    node.executed = true;
-                    console.log(`✅ ${node.type}:`, result);
-                } catch (error) {
-                    node.error = error;
-                    console.log(`❌ ${node.type}:`, error.message);
-                }
-            }
+        const startNodes = this.ast.nodes.filter(node => node.label === startLabel);
+        if (startNodes.length === 0) {
+            throw new Error(`No nodes found for label: ${startLabel}`);
+        }
+
+        // Execute in order (simple linear execution for now)
+        for (const node of startNodes) {
+            await this.executeNode(node);
         }
 
         return this.getExecutionResult();
     }
 
     async executeNode(node) {
-        switch (node.type) {
-            case 'DataNode':
-            case 'TextNode':
-            case 'BoolNode':
-                return node.value;
-                
-            case 'OutputNode':
-                const inputValue = await this.getNodeInput(node);
-                console.log('📤 OUTPUT:', inputValue);
-                return inputValue;
-                
-            case 'FunctionNode':
-                return await this.executeFunction(node);
-                
-            default:
-                return node.value;
+        if (node.executed) return node.result;
+
+        console.log(`▶️ Executing ${node.type}: ${node.value}`);
+        
+        try {
+            let result;
+            
+            switch (node.type) {
+                case 'DATA_NODE':
+                case 'TEXT_NODE':
+                case 'BOOL_NODE':
+                    result = node.value;
+                    break;
+                    
+                case 'OUTPUT_NODE':
+                    const inputValue = await this.getNodeInput(node);
+                    result = this.executeOutput(node, inputValue);
+                    break;
+                    
+                case 'FUNCTION_NODE':
+                    const funcInput = await this.getNodeInput(node);
+                    result = await this.executeFunction(node, funcInput);
+                    break;
+                    
+                case 'CONDITION_NODE':
+                    const conditionInput = await this.getNodeInput(node);
+                    result = await this.executeCondition(node, conditionInput);
+                    break;
+                    
+                default:
+                    result = node.value;
+            }
+
+            node.result = result;
+            node.executed = true;
+            
+            console.log(`✅ ${node.type} result:`, result);
+            return result;
+            
+        } catch (error) {
+            console.log(`❌ ${node.type} error:`, error.message);
+            node.error = error;
+            throw error;
         }
     }
 
     async getNodeInput(node) {
-        // Find connections that point to this node
-        const inputConnections = this.connections.filter(conn => 
-            conn.to && conn.to.id === node.id
-        );
-        
-        if (inputConnections.length > 0) {
-            const sourceNode = inputConnections[0].from;
-            return sourceNode ? this.nodes.get(sourceNode.id)?.result : null;
-        }
-        
-        return node.value;
+        // Find incoming connections
+        const incoming = this.connections.filter(conn => conn.to === node.id);
+        if (incoming.length === 0) return node.value;
+
+        // Get result from source node
+        const sourceNode = this.nodes.get(incoming[0].from);
+        if (!sourceNode) return null;
+
+        return await this.executeNode(sourceNode);
     }
 
-    async executeFunction(node) {
-        const functionName = node.value;
-        const inputValue = await this.getNodeInput(node);
+    executeOutput(node, input) {
+        const output = `📤 OUTPUT: ${input}`;
+        this.output.push(output);
+        console.log(output);
+        return input;
+    }
+
+    async executeFunction(node, input) {
+        const funcName = node.value;
         
-        // Built-in functions
+        // Built-in function library
         const builtins = {
-            'print': (x) => { console.log(x); return x; },
-            'to_upper': (x) => x.toUpperCase(),
-            'add': (x, y) => x + y,
-            'multiply': (x, y) => x * y
+            // Math
+            'add': (a, b) => a + b,
+            'subtract': (a, b) => a - b,
+            'multiply': (a, b) => a * b,
+            'divide': (a, b) => a / b,
+            
+            // Text
+            'to_upper': (str) => str.toUpperCase(),
+            'to_lower': (str) => str.toLowerCase(),
+            'length': (str) => str.length,
+            
+            // Logic
+            'not': (val) => !val,
+            'equals': (a, b) => a === b,
+            
+            // Output
+            'print': (val) => { 
+                const output = `📤 PRINT: ${val}`;
+                this.output.push(output);
+                console.log(output);
+                return val;
+            }
         };
 
-        if (builtins[functionName]) {
-            return builtins[functionName](inputValue);
+        if (builtins[funcName]) {
+            // For now, use the input as single argument
+            return builtins[funcName](input);
         }
-        
-        throw new Error(`Unknown function: ${functionName}`);
+
+        throw new Error(`Unknown function: ${funcName}`);
+    }
+
+    async executeCondition(node, input) {
+        // For now, treat condition as boolean check
+        return Boolean(input);
     }
 
     getExecutionResult() {
-        const results = Array.from(this.nodes.values()).map(node => ({
+        const nodeResults = Array.from(this.nodes.values()).map(node => ({
             id: node.id,
             type: node.type,
             value: node.value,
@@ -104,9 +155,10 @@ export class GlyphEngine {
         }));
 
         return {
-            success: !results.some(r => r.error),
-            results: results,
-            finalOutput: results.find(r => r.type === 'OutputNode')?.result
+            success: !nodeResults.some(n => n.error),
+            output: this.output,
+            nodes: nodeResults,
+            variables: Object.fromEntries(this.variables)
         };
     }
 }
