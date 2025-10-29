@@ -1,0 +1,10 @@
+# User Input Processing Examples
+# These simulate processing different input formats
+
+[□ "twenty five"] → [▷ parse_text_to_number] → [▷ print]
+[□ "18 years old"] → [▷ clean_mixed_input] → [▷ print]
+[□ "forty two"] → [▷ parse_text_to_number] → [▷ print]
+
+# Age validation pipeline
+[□ "35"] → [▷ to_number] → [◯ is_valid_age?] → [▷ print]
+[□ "one hundred fifty"] → [▷ parse_text_to_number] → [◯ is_valid_age?] → [▷ print]
