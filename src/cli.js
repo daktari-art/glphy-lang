@@ -1,73 +1,70 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import GlyphCompiler from './compiler/core.js';
+import { readFileSync } from 'fs';
+import { GlyphParser } from './compiler/parser.js';
+import { GlyphEngine } from './runtime/engine.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+class GlyphCLI {
+    constructor() {
+        this.parser = new GlyphParser();
+        this.engine = new GlyphEngine();
+    }
 
-const args = process.argv.slice(2);
+    async run() {
+        const args = process.argv.slice(2);
+        const command = args[0];
+        const filename = args[1];
 
-if (args.length === 0 || args.includes('--help')) {
-    console.log(`
+        if (!command || !filename) {
+            this.showHelp();
+            return;
+        }
+
+        try {
+            const source = readFileSync(filename, 'utf8');
+            
+            if (command === 'parse') {
+                const ast = this.parser.parse(source);
+                console.log('📄 AST:', JSON.stringify(ast, null, 2));
+            } else if (command === 'run') {
+                await this.execute(source);
+            } else {
+                console.error('❌ Unknown command:', command);
+            }
+        } catch (error) {
+            console.error('💥 Error:', error.message);
+        }
+    }
+
+    async execute(source) {
+        console.log('🔮 Glyph Language Runtime');
+        console.log('========================\n');
+        
+        const ast = this.parser.parse(source);
+        this.engine.loadProgram(ast);
+        const result = await this.engine.execute();
+        
+        console.log('\n📊 Execution Summary:');
+        console.log('===================');
+        console.log('Success:', result.success);
+        console.log('Final Output:', result.finalOutput);
+    }
+
+    showHelp() {
+        console.log(`
 🔮 Glyph Language v0.1.0
 
 Usage:
-  glyph compile <file.glyph>
-  glyph run <file.glyph>
-  
+  glyph parse <file.glyph>    # Parse and show AST
+  glyph run <file.glyph>      # Execute program
+
 Examples:
-  glyph compile examples/hello-world.glyph
   glyph run examples/hello-world.glyph
+  glyph parse examples/fibonacci.glyph
 
-Options:
-  --help     Show this help
-  --version  Show version
-    `);
-    process.exit(0);
-}
-
-if (args.includes('--version')) {
-    const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json')));
-    console.log(`Glyph Language v${pkg.version}`);
-    process.exit(0);
-}
-
-const command = args[0];
-const filename = args[1];
-
-if (!filename) {
-    console.error('❌ Please specify a .glyph file');
-    process.exit(1);
-}
-
-try {
-    const glyphCode = readFileSync(filename, 'utf8');
-    const compiler = new GlyphCompiler();
-    
-    if (command === 'compile') {
-        const ast = compiler.parse(glyphCode);
-        const jsCode = compiler.compileToJS(ast);
-        
-        const outputFile = filename.replace('.glyph', '.js');
-        writeFileSync(outputFile, jsCode);
-        console.log(`✅ Compiled ${filename} → ${outputFile}`);
-        
-    } else if (command === 'run') {
-        const ast = compiler.parse(glyphCode);
-        const jsCode = compiler.compileToJS(ast);
-        
-        // Execute the generated code
-        console.log('🔮 Executing Glyph program...');
-        eval(jsCode);
-        
-    } else {
-        console.error(`❌ Unknown command: ${command}`);
-        process.exit(1);
+GitHub: https://github.com/daktari-art/glphy-lang
+        `);
     }
-    
-} catch (error) {
-    console.error('❌ Error:', error.message);
-    process.exit(1);
 }
+
+// Run CLI
+new GlyphCLI().run();
