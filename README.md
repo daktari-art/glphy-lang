@@ -56,6 +56,3 @@ We welcome contributions! Please see CONTRIBUTING.md for details.
 📄 License
 
 MIT License - see LICENSE for details.
-======END FILE ======
-
-`
