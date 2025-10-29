@@ -1,8 +1,10 @@
+// Glyph Language Runtime Engine - FIXED VERSION
 export class GlyphEngine {
     constructor() {
         this.nodes = new Map();
         this.connections = [];
         this.output = [];
+        this.executionOrder = [];
     }
 
     loadProgram(ast) {
@@ -10,19 +12,76 @@ export class GlyphEngine {
         this.nodes.clear();
         this.connections = ast.connections || [];
         this.output = [];
+        this.executionOrder = [];
 
+        // Load all nodes
         ast.nodes.forEach(node => {
-            this.nodes.set(node.id, { ...node, executed: false, result: null });
+            this.nodes.set(node.id, { 
+                ...node, 
+                executed: false, 
+                result: null,
+                inputs: [],
+                outputs: []
+            });
         });
+
+        // Build node connections
+        this.buildNodeConnections();
+        // Determine execution order
+        this.buildExecutionOrder();
+    }
+
+    buildNodeConnections() {
+        // Clear existing connections
+        for (let node of this.nodes.values()) {
+            node.inputs = [];
+            node.outputs = [];
+        }
+
+        // Build connection maps
+        this.connections.forEach(conn => {
+            const fromNode = this.nodes.get(conn.from);
+            const toNode = this.nodes.get(conn.to);
+            
+            if (fromNode && toNode) {
+                fromNode.outputs.push(conn.to);
+                toNode.inputs.push(conn.from);
+            }
+        });
+    }
+
+    buildExecutionOrder() {
+        const visited = new Set();
+        const order = [];
+        
+        const visit = (nodeId) => {
+            if (visited.has(nodeId)) return;
+            visited.add(nodeId);
+            
+            const node = this.nodes.get(nodeId);
+            if (node) {
+                // Visit all inputs first
+                node.inputs.forEach(inputId => visit(inputId));
+                order.push(nodeId);
+            }
+        };
+
+        // Start with nodes that have no outputs (sinks)
+        const sinkNodes = Array.from(this.nodes.values())
+            .filter(node => node.outputs.length === 0)
+            .map(node => node.id);
+
+        // If no sinks, use all nodes
+        const startNodes = sinkNodes.length > 0 ? sinkNodes : Array.from(this.nodes.keys());
+        
+        startNodes.forEach(nodeId => visit(nodeId));
+        this.executionOrder = order.reverse();
     }
 
     async execute() {
         console.log('🚀 Executing Glyph program: main');
         
-        // Build execution order based on connections
-        const executionOrder = this.buildExecutionOrder();
-        
-        for (const nodeId of executionOrder) {
+        for (const nodeId of this.executionOrder) {
             const node = this.nodes.get(nodeId);
             if (node && !node.executed) {
                 await this.executeNode(node);
@@ -30,28 +89,6 @@ export class GlyphEngine {
         }
 
         return this.getExecutionResult();
-    }
-
-    buildExecutionOrder() {
-        // Simple topological sort - execute sources first
-        const nodeIds = Array.from(this.nodes.keys());
-        const hasIncoming = new Set();
-        
-        this.connections.forEach(conn => {
-            hasIncoming.add(conn.to);
-        });
-
-        // Start with nodes that have no incoming connections
-        const executionOrder = nodeIds.filter(id => !hasIncoming.has(id));
-        
-        // Then add remaining nodes
-        nodeIds.forEach(id => {
-            if (!executionOrder.includes(id)) {
-                executionOrder.push(id);
-            }
-        });
-
-        return executionOrder;
     }
 
     async executeNode(node) {
@@ -97,71 +134,71 @@ export class GlyphEngine {
     async executeFunction(node) {
         const funcName = node.value;
         
-        // Get inputs from connected nodes
-        const inputs = [];
-        const incomingConnections = this.connections.filter(conn => conn.to === node.id);
-        
-        for (const conn of incomingConnections) {
-            const sourceNode = this.nodes.get(conn.from);
-            if (sourceNode) {
-                const value = await this.executeNode(sourceNode);
-                inputs.push(value);
+        // Get ALL input values
+        const inputValues = [];
+        for (const inputId of node.inputs) {
+            const inputNode = this.nodes.get(inputId);
+            if (inputNode) {
+                const value = await this.executeNode(inputNode);
+                inputValues.push(value);
             }
         }
 
         const builtins = {
-            // Math functions (expect 2 inputs)
-            'multiply': (a, b) => a * b,
-            'add': (a, b) => a + b,
-            'subtract': (a, b) => a - b,
-            'divide': (a, b) => a / b,
+            // Math functions
+            'multiply': (inputs) => {
+                if (inputs.length < 2) throw new Error('Multiply needs 2 inputs');
+                return inputs[0] * inputs[1];
+            },
+            'add': (inputs) => {
+                if (inputs.length < 2) throw new Error('Add needs 2 inputs');
+                return inputs[0] + inputs[1];
+            },
+            'subtract': (inputs) => {
+                if (inputs.length < 2) throw new Error('Subtract needs 2 inputs');
+                return inputs[0] - inputs[1];
+            },
+            'divide': (inputs) => {
+                if (inputs.length < 2) throw new Error('Divide needs 2 inputs');
+                return inputs[0] / inputs[1];
+            },
             
-            // Text functions (expect 1 input)
-            'to_upper': (str) => str.toUpperCase(),
-            'to_lower': (str) => str.toLowerCase(),
-            'length': (str) => str.length,
+            // Text functions
+            'to_upper': (inputs) => {
+                if (inputs.length < 1) throw new Error('to_upper needs 1 input');
+                return String(inputs[0]).toUpperCase();
+            },
+            'to_lower': (inputs) => {
+                if (inputs.length < 1) throw new Error('to_lower needs 1 input');
+                return String(inputs[0]).toLowerCase();
+            },
             
             // Output function
-            'print': (val) => {
-                const output = `📤 PRINT: ${val}`;
+            'print': (inputs) => {
+                if (inputs.length < 1) throw new Error('print needs 1 input');
+                const output = `📤 PRINT: ${inputs[0]}`;
                 this.output.push(output);
                 console.log(output);
-                return val;
+                return inputs[0];
             }
         };
 
         if (builtins[funcName]) {
-            // Handle functions based on their expected inputs
-            if (['multiply', 'add', 'subtract', 'divide'].includes(funcName)) {
-                if (inputs.length >= 2) {
-                    return builtins[funcName](inputs[0], inputs[1]);
-                } else {
-                    throw new Error(`Function ${funcName} requires 2 inputs, got ${inputs.length}`);
-                }
-            } else {
-                // Single input functions
-                if (inputs.length >= 1) {
-                    return builtins[funcName](inputs[0]);
-                } else {
-                    return builtins[funcName](node.value);
-                }
-            }
+            return builtins[funcName](inputValues);
         }
 
         throw new Error(`Unknown function: ${funcName}`);
     }
 
     async getNodeInput(node) {
-        // Find the first incoming connection
-        const incoming = this.connections.filter(conn => conn.to === node.id);
-        if (incoming.length === 0) return node.value;
-
-        const sourceNode = this.nodes.get(incoming[0].from);
-        return sourceNode ? await this.executeNode(sourceNode) : node.value;
+        if (node.inputs.length === 0) return node.value;
+        
+        const inputNode = this.nodes.get(node.inputs[0]);
+        return inputNode ? await this.executeNode(inputNode) : node.value;
     }
 
     executeOutput(input) {
-        const output = `📤 PRINT: ${input}`;
+        const output = `📤 OUTPUT: ${input}`;
         this.output.push(output);
         console.log(output);
         return input;
@@ -172,7 +209,9 @@ export class GlyphEngine {
             type: node.type,
             value: node.value,
             result: node.result,
-            error: node.error
+            error: node.error,
+            inputs: node.inputs,
+            outputs: node.outputs
         }));
 
         return {
