@@ -2,13 +2,12 @@
   "name": "@glyph-lang/core",
   "version": "0.1.0",
   "description": "Glyph Language - Visual Data Flow Programming",
-  "main": "src/compiler/core.js",
+  "main": "src/cli.js",
   "type": "module",
   "scripts": {
-    "test": "node tests/runner.js",
-    "compile": "node src/cli.js compile",
-    "run": "node src/cli.js run",
-    "dev": "node --watch src/cli.js run"
+    "start": "node src/cli.js",
+    "test": "node src/cli.js run test/basic-test.glyph",
+    "dev": "node --watch src/cli.js run examples/hello-world.glyph"
   },
   "keywords": [
     "visual-programming",
@@ -16,7 +15,7 @@
     "programming-language",
     "glyph"
   ],
-  "author": "Your Name",
+  "author": "Daktari Art",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -27,5 +26,11 @@
   },
   "engines": {
     "node": ">=16.0.0"
-  }
+  },
+  "files": [
+    "src/",
+    "examples/",
+    "README.md",
+    "LICENSE"
+  ]
 }
