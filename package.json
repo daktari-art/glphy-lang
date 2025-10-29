@@ -1,0 +1,26 @@
+{
+  "name": "@glyph-lang/core",
+  "version": "0.1.0",
+  "description": "Glyph Language - Visual Data Flow Programming",
+  "main": "src/compiler/core.js",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/runner.js",
+    "compile": "node src/cli.js"
+  },
+  "keywords": [
+    "visual-programming",
+    "dataflow",
+    "programming-language",
+    "glyph"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/glyph-lang"
+  },
+  "bin": {
+    "glyph": "./src/cli.js"
+  }
+}
