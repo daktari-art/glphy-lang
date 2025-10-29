@@ -1,0 +1,8 @@
+# Arithmetic Operations - Testing Multi-Input Fix
+[○ 12] → [▷ multiply] ← [○ 12] → [▷ print]
+[○ 2] → [▷ exponent] ← [○ 8] → [▷ print]
+[○ 10] → [▷ add] ← [○ 20] → [▷ print]
+[○ 100] → [▷ subtract] ← [○ 25] → [▷ print]
+
+# Complex expression
+[○ 5] → [▷ multiply] ← [○ 6] → [▷ add] ← [○ 10] → [▷ print]
