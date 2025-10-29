@@ -12,7 +12,7 @@ We love your input! We want to make contributing to Glyph as easy and transparen
 ### Local Development
 ```bash
 # Fork and clone the repository
-git clone https://github.com/your-username/glyph-lang.git
+git clone https://github.com/daktari-art/glyph-lang.git
 cd glyph-lang
 
 # Install dependencies
