@@ -1,4 +1,3 @@
 # Hello World in Glyph
-# The simplest Glyph program
-
-[□ "Hello, World!"] → [⤶ print]
+[□ "Hello, World!"] → [▷ print]
+[□ "Welcome to Glyph Language!"] → [▷ to_upper] → [▷ print]
