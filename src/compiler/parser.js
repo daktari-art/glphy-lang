@@ -1,3 +1,4 @@
+// Glyph Language Parser - FIXED VERSION
 export class GlyphParser {
     constructor() {
         this.symbols = {
@@ -8,9 +9,17 @@ export class GlyphParser {
     }
 
     parse(source) {
-        const ast = { type: 'Program', nodes: [], connections: [], labels: {} };
+        const ast = { 
+            type: 'Program', 
+            nodes: [], 
+            connections: [], 
+            labels: {},
+            metadata: { source: source }
+        };
+
         const lines = source.split('\n');
         let currentLabel = 'main';
+        let nodeCounter = 0;
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
@@ -24,35 +33,38 @@ export class GlyphParser {
                 continue;
             }
 
-            // Parse nodes and connections
-            this.parseLine(line, ast, currentLabel, i);
+            // Parse this line
+            this.parseLine(line, ast, currentLabel, i, nodeCounter);
+            nodeCounter += 10; // Increment counter for next line
         }
 
         return ast;
     }
 
-    parseLine(line, ast, label, lineNum) {
-        // Extract all nodes from line
+    parseLine(line, ast, label, lineNum, startId) {
+        // Extract ALL nodes from this line
         const nodeRegex = /\[([○□△◇▷⟳◯⤶⚡🔄])\s+([^\]]+)\]/g;
+        const nodes = [];
         let match;
-        const lineNodes = [];
-
+        
         while ((match = nodeRegex.exec(line)) !== null) {
+            const nodeId = `node_${lineNum}_${startId + nodes.length}`;
             const node = {
-                id: `node_${lineNum}_${lineNodes.length}`,
+                id: nodeId,
                 type: this.symbols[match[1]] || 'UNKNOWN_NODE',
                 glyph: match[1],
                 value: this.parseValue(match[2].trim()),
                 label: label,
-                line: lineNum,
-                position: { x: lineNodes.length * 100, y: lineNum * 50 }
+                line: lineNum
             };
-            lineNodes.push(node);
+            nodes.push(node);
             ast.nodes.push(node);
         }
 
+        if (nodes.length === 0) return;
+
         // Parse connections between nodes
-        this.parseConnections(line, ast, lineNodes, lineNum);
+        this.parseConnections(line, ast, nodes, lineNum);
     }
 
     parseValue(value) {
@@ -71,9 +83,7 @@ export class GlyphParser {
     }
 
     parseConnections(line, ast, nodes, lineNum) {
-        if (nodes.length < 2) return;
-
-        // Simple forward connections
+        // For simple linear flow: [A] → [B] → [C]
         for (let i = 0; i < nodes.length - 1; i++) {
             ast.connections.push({
                 from: nodes[i].id,
@@ -83,10 +93,44 @@ export class GlyphParser {
             });
         }
 
-        // Parse explicit flow arrows
-        if (line.includes('→')) {
-            const arrowIndex = line.indexOf('→');
-            // Logic to connect nodes based on arrow position
+        // Parse explicit arrows for complex flows
+        this.parseExplicitConnections(line, ast, nodes, lineNum);
+    }
+
+    parseExplicitConnections(line, ast, nodes, lineNum) {
+        // Look for right arrows (→) and left arrows (←)
+        const rightArrowRegex = /→/g;
+        const leftArrowRegex = /←/g;
+        
+        let rightMatch;
+        let nodeIndex = 0;
+        
+        // Parse right arrows: [A] → [B] means A connects to B
+        while ((rightMatch = rightArrowRegex.exec(line)) !== null) {
+            if (nodeIndex < nodes.length - 1) {
+                ast.connections.push({
+                    from: nodes[nodeIndex].id,
+                    to: nodes[nodeIndex + 1].id,
+                    type: 'DATA_FLOW',
+                    line: lineNum
+                });
+                nodeIndex++;
+            }
+        }
+
+        // Parse left arrows: [B] ← [A] means A connects to B  
+        // This is trickier - we need to find which nodes are around the left arrow
+        let leftMatch;
+        while ((leftMatch = leftArrowRegex.exec(line)) !== null) {
+            // For now, assume left arrow connects the previous node to current
+            if (nodeIndex > 0 && nodeIndex < nodes.length) {
+                ast.connections.push({
+                    from: nodes[nodeIndex].id, 
+                    to: nodes[nodeIndex - 1].id,
+                    type: 'DATA_FLOW',
+                    line: lineNum
+                });
+            }
         }
     }
 }
