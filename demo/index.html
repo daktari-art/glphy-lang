@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Glyph Language Live Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .editor { width: 100%; height: 200px; font-family: monospace; }
+        .output { background: #f5f5f5; padding: 10px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🔮 Glyph Language Live Demo</h1>
+    <textarea class="editor" id="codeEditor">[□ "Hello, Glyph!"] → [⤶ print]</textarea>
+    <button onclick="runGlyph()">Run Glyph</button>
+    <div class="output" id="output"></div>
+
+    <script type="module">
+        import { GlyphCompiler } from '../src/compiler/core.js';
+
+        window.runGlyph = function() {
+            const code = document.getElementById('codeEditor').value;
+            const output = document.getElementById('output');
+            
+            try {
+                const compiler = new GlyphCompiler();
+                const ast = compiler.parse(code);
+                const jsCode = compiler.compileToJS(ast);
+                
+                output.innerHTML = `<strong>Generated JavaScript:</strong><br><pre>${jsCode}</pre>`;
+                
+                // Execute the code
+                eval(jsCode);
+            } catch (error) {
+                output.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        };
+    </script>
+</body>
+</html>
