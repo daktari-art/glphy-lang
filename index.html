@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔮 Glyph Language - Graph Reduction Demo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            min-height: 100vh; 
+            padding: 20px; 
+            color: #333;
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 15px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1); 
+            overflow: hidden; 
+        }
+        .header { 
+            background: #2c3e50; 
+            color: white; 
+            padding: 30px; 
+            text-align: center; 
+        }
+        .header h1 { 
+            font-size: 2.5em; 
+            margin-bottom: 10px; 
+            font-weight: 300;
+        }
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+        .demo-area { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 30px; 
+            padding: 30px; 
+            height: 70vh;
+        }
+        .editor-section, .output-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .section-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+        }
+        .code-editor, .output-display { 
+            width: 100%; 
+            height: 100%;
+            min-height: 300px; 
+            padding: 20px; 
+            border-radius: 10px; 
+            font-family: 'Fira Code', 'Cascadia Code', 'Monaco', monospace; 
+            font-size: 14px; 
+            line-height: 1.5;
+        }
+        .code-editor { 
+            border: 2px solid #bdc3c7; 
+            background: #f8f9fa; 
+            resize: none;
+            transition: border-color 0.3s;
+        }
+        .code-editor:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        .output-display { 
+            border: 2px solid #34495e; 
+            background: #1e1e1e; 
+            color: #ffffff; 
+            overflow-y: auto;
+            font-family: 'Fira Code', monospace;
+        }
+        .controls { 
+            display: flex; 
+            gap: 15px; 
+            margin-top: 10px; 
+        }
+        .btn { 
+            padding: 12px 25px; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .btn-run { 
+            background: #27ae60; 
+            color: white; 
+        }
+        .btn-run:hover {
+            background: #219653;
+        }
+        .btn-examples { 
+            background: #3498db; 
+            color: white; 
+        }
+        .btn-examples:hover {
+            background: #2980b9;
+        }
+        .btn-clear { 
+            background: #e74c3c; 
+            color: white; 
+        }
+        .btn-clear:hover {
+            background: #c0392b;
+        }
+        .examples-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .example-btn {
+            padding: 10px 15px;
+            background: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: left;
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .example-btn:hover {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        .output-line {
+            margin-bottom: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        .info { color: #3498db; }
+        .success { color: #27ae60; }
+        .warning { color: #f39c12; }
+        .error { color: #e74c3c; }
+        .step { color: #9b59b6; font-weight: bold; }
+        .pattern { color: #e67e22; }
+        .result { color: #2ecc71; font-weight: bold; }
+        
+        .transformation-steps {
+            background: #2c3e50;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .step-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: #34495e;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+        
+        @media (max-width: 768px) {
+            .demo-area {
+                grid-template-columns: 1fr;
+            }
+            .examples-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔮 Glyph Language - GRAPH REDUCTION ENGINE</h1>
+            <div class="subtitle">Watch your visual program transform step by step through pattern matching</div>
+        </div>
+        
+        <div class="demo-area">
+            <div class="editor-section">
+                <div class="section-title">📝 Write Glyph Code</div>
+                <textarea class="code-editor" id="codeEditor" placeholder="Enter your Glyph code here...">[○ 12] → [▷ multiply] ← [○ 12]
+
+[□ "hello"] → [▷ concat] ← [□ " world"]
+
+[○ 5] → [▷ add] ← [○ 3] ← [○ 2]</textarea>
+                
+                <div class="section-title">🚀 Quick Examples</div>
+                <div class="examples-grid">
+                    <button class="example-btn" onclick="loadExample(0)">[○ 12] → [▷ multiply] ← [○ 12]</button>
+                    <button class="example-btn" onclick="loadExample(1)">[□ "hello"] → [▷ concat] ← [□ " world"]</button>
+                    <button class="example-btn" onclick="loadExample(2)">[○ 5] → [▷ add] ← [○ 3] ← [○ 2]</button>
+                    <button class="example-btn" onclick="loadExample(3)">[○ 2] → [▷ multiply] ← [○ 3] ← [○ 4]</button>
+                    <button class="example-btn" onclick="loadExample(4)">[□ "Result: "] → [▷ concat] ← [○ 100]</button>
+                    <button class="example-btn" onclick="loadExample(5)">Complex: Multiple operations</button>
+                </div>
+                
+                <div class="controls">
+                    <button class="btn btn-run" onclick="runGlyph()">
+                        <span>🔄</span> Reduce Graph
+                    </button>
+                    <button class="btn btn-clear" onclick="clearOutput()">
+                        <span>🗑️</span> Clear
+                    </button>
+                </div>
+            </div>
+            
+            <div class="output-section">
+                <div class="section-title">📊 Reduction Process & Results</div>
+                <div class="output-display" id="output">
+                    <div class="output-line info">🔮 Glyph Graph Reduction Engine</div>
+                    <div class="output-line info">Pattern-based transformation system</div>
+                    <div class="output-line warning">💡 Click "Reduce Graph" to see step-by-step transformation</div>
+                </div>
+                
+                <div class="section-title">🔄 Transformation Steps</div>
+                <div class="transformation-steps" id="steps">
+                    <div class="step-item">No transformations yet...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Visual Parser
+        class VisualParser {
+            parse(source) {
+                const lines = source.split('\n');
+                const graph = { nodes: [], connections: [] };
+                let nodeId = 0;
+
+                lines.forEach((line, lineNum) => {
+                    if (!line.trim() || line.trim().startsWith('#')) return;
+
+                    const nodes = this.parseNodes(line, lineNum, nodeId);
+                    graph.nodes.push(...nodes);
+                    nodeId += nodes.length;
+
+                    const lineConnections = this.parseConnections(line, nodes, lineNum);
+                    graph.connections.push(...lineConnections);
+                });
+
+                return graph;
+            }
+
+            parseNodes(line, lineNum, startId) {
+                const nodeRegex = /\[([○□▷])\s+([^\]]+)\]/g;
+                const nodes = [];
+                let match;
+
+                while ((match = nodeRegex.exec(line)) !== null) {
+                    const node = {
+                        id: `node_${lineNum}_${startId + nodes.length}`,
+                        type: this.getNodeType(match[1]),
+                        value: this.parseValue(match[2].trim()),
+                        position: match.index,
+                        line: lineNum,
+                        raw: match[0]
+                    };
+                    nodes.push(node);
+                }
+
+                return nodes;
+            }
+
+            getNodeType(glyph) {
+                const types = {
+                    '○': 'DATA_NODE',
+                    '□': 'TEXT_NODE', 
+                    '▷': 'FUNCTION_NODE'
+                };
+                return types[glyph] || 'UNKNOWN_NODE';
+            }
+
+            parseValue(value) {
+                if ((value.startsWith('"') && value.endsWith('"')) || 
+                    (value.startsWith("'") && value.endsWith("'"))) {
+                    return value.slice(1, -1);
+                }
+                if (!isNaN(value) && value.trim() !== '') return Number(value);
+                return value;
+            }
+
+            parseConnections(line, nodes, lineNum) {
+                const connections = [];
+                
+                // Connect nodes in order
+                for (let i = 0; i < nodes.length - 1; i++) {
+                    connections.push({
+                        from: nodes[i].id,
+                        to: nodes[i+1].id,
+                        type: 'DATA_FLOW',
+                        line: lineNum
+                    });
+                }
+
+                // Handle left arrows
+                const leftArrowRegex = /←/g;
+                let arrowMatch;
+                while ((arrowMatch = leftArrowRegex.exec(line)) !== null) {
+                    const leftNode = this.findNodeBefore(nodes, arrowMatch.index);
+                    const rightNode = this.findNodeAfter(nodes, arrowMatch.index);
+                    
+                    if (leftNode && rightNode) {
+                        connections.push({
+                            from: rightNode.id,
+                            to: leftNode.id,
+                            type: 'DATA_FLOW',
+                            line: lineNum
+                        });
+                    }
+                }
+
+                return connections;
+            }
+
+            findNodeBefore(nodes, position) {
+                for (let i = nodes.length - 1; i >= 0; i--) {
+                    if (nodes[i].position < position) {
+                        return nodes[i];
+                    }
+                }
+                return null;
+            }
+
+            findNodeAfter(nodes, position) {
+                for (let i = 0; i < nodes.length; i++) {
+                    if (nodes[i].position > position) {
+                        return nodes[i];
+                    }
+                }
+                return null;
+            }
+        }
+
+        // Pattern Engine
+        class PatternEngine {
+            constructor() {
+                this.patterns = this.initializePatterns();
+            }
+
+            initializePatterns() {
+                return [
+                    {
+                        name: 'multiplication',
+                        match: (graph) => {
+                            const multiplyFunc = graph.nodes.find(n => 
+                                n.type === 'FUNCTION_NODE' && n.value === 'multiply'
+                            );
+                            if (!multiplyFunc) return null;
+
+                            const inputs = graph.connections
+                                .filter(c => c.to === multiplyFunc.id)
+                                .map(c => graph.nodes.find(n => n.id === c.from))
+                                .filter(n => n && (n.type === 'DATA_NODE'));
+
+                            return inputs.length >= 2 ? { function: multiplyFunc, inputs } : null;
+                        },
+                        transform: (graph, match) => {
+                            const result = match.inputs.reduce((a, b) => a.value * b.value, 1);
+                            return this.replacePatternWithResult(graph, match, result, 'DATA_NODE');
+                        }
+                    },
+                    {
+                        name: 'addition',
+                        match: (graph) => {
+                            const addFunc = graph.nodes.find(n => 
+                                n.type === 'FUNCTION_NODE' && n.value === 'add'
+                            );
+                            if (!addFunc) return null;
+
+                            const inputs = graph.connections
+                                .filter(c => c.to === addFunc.id)
+                                .map(c => graph.nodes.find(n => n.id === c.from))
+                                .filter(n => n && (n.type === 'DATA_NODE'));
+
+                            return inputs.length >= 2 ? { function: addFunc, inputs } : null;
+                        },
+                        transform: (graph, match) => {
+                            const result = match.inputs.reduce((a, b) => a.value + b.value, 0);
+                            return this.replacePatternWithResult(graph, match, result, 'DATA_NODE');
+                        }
+                    },
+                    {
+                        name: 'concatenation',
+                        match: (graph) => {
+                            const concatFunc = graph.nodes.find(n => 
+                                n.type === 'FUNCTION_NODE' && n.value === 'concat'
+                            );
+                            if (!concatFunc) return null;
+
+                            const inputs = graph.connections
+                                .filter(c => c.to === concatFunc.id)
+                                .map(c => graph.nodes.find(n => n.id === c.from))
+                                .filter(n => n && (n.type === 'TEXT_NODE' || n.type === 'DATA_NODE'));
+
+                            return inputs.length >= 2 ? { function: concatFunc, inputs } : null;
+                        },
+                        transform: (graph, match) => {
+                            const result = match.inputs.map(i => String(i.value)).join('');
+                            return this.replacePatternWithResult(graph, match, result, 'TEXT_NODE');
+                        }
+                    }
+                ];
+            }
+
+            replacePatternWithResult(graph, match, result, resultType) {
+                const newGraph = {
+                    nodes: graph.nodes.filter(n => 
+                        n.id !== match.function.id && !match.inputs.some(i => i.id === n.id)
+                    ),
+                    connections: graph.connections.filter(c => 
+                        c.to !== match.function.id && !match.inputs.some(i => i.id === c.from)
+                    )
+                };
+
+                newGraph.nodes.push({
+                    id: `result_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    type: resultType,
+                    value: result,
+                    line: match.function.line
+                });
+
+                return newGraph;
+            }
+
+            findApplicablePattern(graph) {
+                for (const pattern of this.patterns) {
+                    const match = pattern.match(graph);
+                    if (match) return { pattern, match };
+                }
+                return null;
+            }
+
+            applyPattern(graph, pattern, match) {
+                return pattern.transform(graph, match);
+            }
+        }
+
+        // Graph Reducer
+        class GraphReducer {
+            constructor() {
+                this.patternEngine = new PatternEngine();
+                this.transformationHistory = [];
+            }
+
+            reduce(graph) {
+                this.transformationHistory = [];
+                let currentGraph = JSON.parse(JSON.stringify(graph));
+                let step = 0;
+                const maxSteps = 20;
+
+                while (step < maxSteps) {
+                    const patternMatch = this.patternEngine.findApplicablePattern(currentGraph);
+                    if (!patternMatch) break;
+
+                    currentGraph = this.patternEngine.applyPattern(
+                        currentGraph, 
+                        patternMatch.pattern, 
+                        patternMatch.match
+                    );
+
+                    this.transformationHistory.push({
+                        step: step + 1,
+                        pattern: patternMatch.pattern.name,
+                        graph: JSON.parse(JSON.stringify(currentGraph)),
+                        description: this.getTransformationDescription(patternMatch),
+                        nodes: currentGraph.nodes.length,
+                        connections: currentGraph.connections.length
+                    });
+
+                    step++;
+                }
+
+                return {
+                    finalGraph: currentGraph,
+                    steps: this.transformationHistory,
+                    reduced: step > 0
+                };
+            }
+
+            getTransformationDescription(match) {
+                const { pattern, match: data } = match;
+                
+                switch (pattern.name) {
+                    case 'multiplication':
+                        const multResult = data.inputs.reduce((a, b) => a.value * b.value, 1);
+                        return `Multiplied ${data.inputs.map(i => i.value).join(' × ')} = ${multResult}`;
+                    case 'addition':
+                        const addResult = data.inputs.reduce((a, b) => a.value + b.value, 0);
+                        return `Added ${data.inputs.map(i => i.value).join(' + ')} = ${addResult}`;
+                    case 'concatenation':
+                        const concatResult = data.inputs.map(i => String(i.value)).join('');
+                        return `Concatenated "${data.inputs.map(i => i.value).join('" + "')}" = "${concatResult}"`;
+                    default:
+                        return `Applied ${pattern.name} transformation`;
+                }
+            }
+
+            extractResults(finalGraph) {
+                return finalGraph.nodes.filter(node => 
+                    node.type === 'DATA_NODE' || node.type === 'TEXT_NODE'
+                );
+            }
+        }
+
+        // Demo Engine
+        class WebGlyphEngine {
+            constructor() {
+                this.parser = new VisualParser();
+                this.reducer = new GraphReducer();
+                this.outputElement = document.getElementById('output');
+                this.stepsElement = document.getElementById('steps');
+            }
+
+            output(message, type = 'info') {
+                const line = document.createElement('div');
+                line.className = `output-line ${type}`;
+                line.textContent = message;
+                this.outputElement.appendChild(line);
+                this.outputElement.scrollTop = this.outputElement.scrollHeight;
+            }
+
+            clearOutput() {
+                this.outputElement.innerHTML = '';
+                this.stepsElement.innerHTML = '';
+            }
+
+            runReduction(code) {
+                this.clearOutput();
+                
+                this.output('🔮 Starting Graph Reduction Process', 'info');
+                this.output('='.repeat(50), 'info');
+
+                try {
+                    // Parse
+                    const graph = this.parser.parse(code);
+                    this.output(`📊 Parsed graph: ${graph.nodes.length} nodes, ${graph.connections.length} connections`, 'info');
+
+                    // Reduce
+                    const reduction = this.reducer.reduce(graph);
+
+                    // Show steps
+                    this.showTransformationSteps(reduction.steps);
+
+                    // Show results
+                    this.showResults(reduction);
+
+                } catch (error) {
+                    this.output(`💥 Error: ${error.message}`, 'error');
+                }
+            }
+
+            showTransformationSteps(steps) {
+                this.stepsElement.innerHTML = '';
+                
+                if (steps.length === 0) {
+                    this.stepsElement.innerHTML = '<div class="step-item">No transformations applied</div>';
+                    return;
+                }
+
+                steps.forEach(step => {
+                    const stepElement = document.createElement('div');
+                    stepElement.className = 'step-item';
+                    stepElement.innerHTML = `
+                        <strong>Step ${step.step}:</strong> ${step.description}<br>
+                        <small>Graph: ${step.nodes} nodes, ${step.connections} connections</small>
+                    `;
+                    this.stepsElement.appendChild(stepElement);
+                });
+            }
+
+            showResults(reduction) {
+                const results = this.reducer.extractResults(reduction.finalGraph);
+                
+                this.output('\n💾 FINAL RESULTS:', 'success');
+                if (results.length > 0) {
+                    results.forEach(result => {
+                        if (result.type === 'TEXT_NODE') {
+                            this.output(`   📝 "${result.value}"`, 'result');
+                        } else {
+                            this.output(`   🔢 ${result.value}`, 'result');
+                        }
+                    });
+                } else {
+                    this.output('   No results extracted', 'warning');
+                }
+
+                this.output(`\n📈 FINAL GRAPH STATE: ${reduction.finalGraph.nodes.length} nodes, ${reduction.finalGraph.connections.length} connections`, 'info');
+                this.output('✅ Reduction process completed!', 'success');
+            }
+        }
+
+        // Examples and UI
+        const examples = [
+            '[○ 12] → [▷ multiply] ← [○ 12]',
+            '[□ "hello"] → [▷ concat] ← [□ " world"]',
+            '[○ 5] → [▷ add] ← [○ 3] ← [○ 2]',
+            '[○ 2] → [▷ multiply] ← [○ 3] ← [○ 4]',
+            '[□ "Result: "] → [▷ concat] ← [○ 100]',
+            `[○ 12] → [▷ multiply] ← [○ 12]
+[□ "hello"] → [▷ concat] ← [□ " world"]
+[○ 5] → [▷ add] ← [○ 3] ← [○ 2]`
+        ];
+
+        const glyphEngine = new WebGlyphEngine();
+
+        function loadExample(index) {
+            if (index >= 0 && index < examples.length) {
+                document.getElementById('codeEditor').value = examples[index];
+                glyphEngine.output(`📝 Loaded example ${index + 1}`, 'info');
+            }
+        }
+
+        function runGlyph() {
+            const code = document.getElementById('codeEditor').value;
+            if (!code.trim()) {
+                glyphEngine.output('⚠️ Please enter some Glyph code', 'warning');
+                return;
+            }
+            glyphEngine.runReduction(code);
+        }
+
+        function clearOutput() {
+            glyphEngine.clearOutput();
+            glyphEngine.output('🗑️ Output cleared. Ready for reduction.', 'info');
+        }
+
+        // Initial setup
+        glyphEngine.output('💡 Try the examples or write your own Glyph code!', 'info');
+        glyphEngine.output('The engine will show step-by-step graph transformations.', 'info');
+    </script>
+</body>
+</html>
