@@ -1,6 +1,19 @@
-# Simple test without advanced functions
-[○ 5] → [▷ multiply] ← [○ 6] → [▷ print]
-[□ "hello"] → [▷ concat] ← [□ " world"] → [▷ print]
-[○ 2] → [▷ multiply] ← [○ 3] ← [○ 4] → [▷ print]
-[○ 12] → [▷ multiply] ← [○ 12] → [▷ print]
+# Simple test with CORRECTED connection syntax
+[○ 5] → [▷ multiply] ← [○ 6]
+[▷ multiply] → [▷ print]
+
+[□ "hello"] → [▷ concat] ← [□ " world"]
+[▷ concat] → [▷ print]
+
+[○ 2] → [▷ multiply] ← [○ 3] ← [○ 4]
+[▷ multiply] → [▷ print]
+
+[○ 12] → [▷ multiply] ← [○ 12]
+[▷ multiply] → [▷ print]
+
 [□ "Codespaces is working!"] → [▷ to_upper] → [▷ print]
+
+# Chained operations
+[○ 10] → [▷ add] ← [○ 20]
+[▷ add] → [▷ multiply] ← [○ 2]
+[▷ multiply] → [▷ print]
