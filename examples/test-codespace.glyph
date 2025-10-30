@@ -1,3 +1,7 @@
+# Test file for Codespace - Multi-input verification
+[○ 5] → [▷ multiply] ← [○ 6] → [▷ print]
+[□ "hello"] → [▷ concat] ← [□ " world"] → [▷ print]
+[○ 2] → [▷ multiply] ← [○ 3] ← [○ 4] → [▷ print]
 [○ 12] → [▷ multiply] ← [○ 12] → [▷ print]
 [□ "Codespaces is working!"] → [▷ to_upper] → [▷ print]
 # User Input Processing Examples
