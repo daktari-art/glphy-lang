@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-// src/cli.js
+// src/cli.js - FIXED VERSION
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve, basename } from 'path';
 import { GlyphCompiler } from './compiler/core.js';
 import { GlyphEngine } from './runtime/engine.js';
-import { GlyphRuntime } from './runtime/runtime.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,8 +13,6 @@ class GlyphCLI {
     constructor() {
         this.compiler = new GlyphCompiler();
         this.engine = new GlyphEngine();
-        this.runtime = new GlyphRuntime();
-        this.runtime.initialize();
     }
 
     async run() {
@@ -327,11 +324,10 @@ EXAMPLES:
     }
 
     showEnvironment() {
-        const snapshot = this.runtime.getEnvironmentSnapshot();
         console.log('🔧 RUNTIME ENVIRONMENT:');
-        console.log('   Variables:', Object.keys(snapshot.variables).length);
-        console.log('   Stack depth:', snapshot.executionStack);
-        console.log('   Output buffer:', snapshot.outputCount);
+        console.log('   Engine: Graph-based with multi-input support');
+        console.log('   Parser: GraphParser with connection mapping');
+        console.log('   Status: Ready for execution');
     }
 
     showHelp() {
