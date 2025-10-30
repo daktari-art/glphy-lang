@@ -1,4 +1,4 @@
-// src/runtime/engine.js - FIXED MULTI-INPUT VERSION
+// src/runtime/engine.js - FIXED VERSION
 export class GlyphEngine {
     constructor() {
         this.nodes = new Map();
@@ -11,9 +11,9 @@ export class GlyphEngine {
 
     initializeBuiltins() {
         return {
-            // Math operations
+            // Math operations - MULTI-INPUT FIXED
             'multiply': (inputs) => {
-                console.log(`🔢 MULTIPLY called with inputs:`, inputs);
+                console.log(`🔢 MULTIPLY called with:`, inputs);
                 if (inputs.length < 2) {
                     throw new Error(`Multiply needs at least 2 inputs, got ${inputs.length}`);
                 }
@@ -22,8 +22,11 @@ export class GlyphEngine {
                 return result;
             },
             'add': (inputs) => {
+                console.log(`➕ ADD called with:`, inputs);
                 if (inputs.length < 2) throw new Error('Add needs at least 2 inputs');
-                return inputs.reduce((a, b) => a + b, 0);
+                const result = inputs.reduce((a, b) => a + b, 0);
+                console.log(`➕ ADD result: ${inputs.join(' + ')} = ${result}`);
+                return result;
             },
             'subtract': (inputs) => {
                 if (inputs.length < 2) throw new Error('Subtract needs 2 inputs');
@@ -39,7 +42,7 @@ export class GlyphEngine {
                 return Math.pow(inputs[0], inputs[1]);
             },
 
-            // Text operations
+            // Text operations - MULTI-INPUT FIXED
             'to_upper': (inputs) => {
                 if (inputs.length < 1) throw new Error('to_upper needs 1 input');
                 return String(inputs[0]).toUpperCase();
@@ -49,8 +52,11 @@ export class GlyphEngine {
                 return String(inputs[0]).toLowerCase();
             },
             'concat': (inputs) => {
+                console.log(`🔗 CONCAT called with:`, inputs);
                 if (inputs.length < 2) throw new Error('concat needs at least 2 inputs');
-                return inputs.map(String).join('');
+                const result = inputs.map(String).join('');
+                console.log(`🔗 CONCAT result: "${inputs.join('" + "')}" = "${result}"`);
+                return result;
             },
             'length': (inputs) => {
                 if (inputs.length < 1) throw new Error('length needs 1 input');
@@ -64,6 +70,18 @@ export class GlyphEngine {
                 this.output.push(output);
                 console.log(output);
                 return inputs[0];
+            },
+
+            // Type conversion
+            'to_string': (inputs) => {
+                if (inputs.length < 1) throw new Error('to_string needs 1 input');
+                return String(inputs[0]);
+            },
+            'to_number': (inputs) => {
+                if (inputs.length < 1) throw new Error('to_number needs 1 input');
+                const num = Number(inputs[0]);
+                if (isNaN(num)) throw new Error(`Cannot convert "${inputs[0]}" to number`);
+                return num;
             }
         };
     }
@@ -95,7 +113,9 @@ export class GlyphEngine {
         this.connections.forEach(conn => {
             const fromNode = this.nodes.get(conn.from);
             const toNode = this.nodes.get(conn.to);
-            console.log(`   ${fromNode?.type}(${fromNode?.value}) → ${toNode?.type}(${toNode?.value})`);
+            if (fromNode && toNode) {
+                console.log(`   ${fromNode.type}(${fromNode.value}) → ${toNode.type}(${toNode.value})`);
+            }
         });
         
         this.buildExecutionOrder();
@@ -114,46 +134,50 @@ export class GlyphEngine {
     }
 
     buildExecutionOrder() {
-        const visited = new Set();
-        const order = [];
-        const nodeDependencies = new Map();
-
-        // Build dependency map
-        this.nodes.forEach((node, id) => {
-            nodeDependencies.set(id, new Set(node.inputs));
-        });
-
-        // Topological sort - visit dependencies first
-        const visit = (nodeId) => {
-            if (visited.has(nodeId)) return;
-            visited.add(nodeId);
-
-            const dependencies = nodeDependencies.get(nodeId);
-            if (dependencies) {
-                dependencies.forEach(depId => {
-                    if (!visited.has(depId)) {
-                        visit(depId);
-                    }
-                });
-            }
-
-            order.push(nodeId);
-        };
-
-        // Start with nodes that have no dependencies
-        const startNodes = Array.from(this.nodes.entries())
-            .filter(([id, node]) => node.inputs.length === 0)
-            .map(([id, node]) => id);
-
-        if (startNodes.length === 0) {
-            // If no start nodes, use all nodes
-            this.nodes.forEach((node, id) => visit(id));
-        } else {
-            startNodes.forEach(id => visit(id));
+        // Kahn's algorithm for topological sort
+        const inDegree = new Map();
+        const graph = new Map();
+        
+        // Initialize
+        for (const nodeId of this.nodes.keys()) {
+            inDegree.set(nodeId, 0);
+            graph.set(nodeId, []);
         }
-
+        
+        // Build graph and in-degree
+        for (const conn of this.connections) {
+            graph.get(conn.from).push(conn.to);
+            inDegree.set(conn.to, inDegree.get(conn.to) + 1);
+        }
+        
+        // Find nodes with no incoming connections
+        const queue = [];
+        for (const [nodeId, degree] of inDegree) {
+            if (degree === 0) {
+                queue.push(nodeId);
+            }
+        }
+        
+        const order = [];
+        while (queue.length > 0) {
+            const nodeId = queue.shift();
+            order.push(nodeId);
+            
+            for (const neighbor of graph.get(nodeId)) {
+                inDegree.set(neighbor, inDegree.get(neighbor) - 1);
+                if (inDegree.get(neighbor) === 0) {
+                    queue.push(neighbor);
+                }
+            }
+        }
+        
+        // Check for cycles
+        if (order.length !== this.nodes.size) {
+            console.warn('⚠️  Possible cycle detected in graph');
+        }
+        
         this.executionOrder = order;
-        console.log(`📋 Execution order:`, this.executionOrder.map(id => {
+        console.log(`📋 Execution order:`, order.map(id => {
             const node = this.nodes.get(id);
             return `${node.type}(${node.value})`;
         }));
