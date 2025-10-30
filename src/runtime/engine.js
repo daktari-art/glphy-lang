@@ -1,4 +1,4 @@
-// src/runtime/engine.js - FIXED VERSION
+// src/runtime/engine.js - COMPLETELY FIXED VERSION
 export class GlyphEngine {
     constructor() {
         this.nodes = new Map();
@@ -71,79 +71,71 @@ export class GlyphEngine {
                 console.log(output);
                 return inputs[0];
             },
-             // Text-to-number conversion functions
-        'parse_text_to_number': (inputs) => {
-            if (inputs.length < 1) throw new Error('parse_text_to_number needs 1 input');
-            const text = String(inputs[0]).toLowerCase();
-            
-            // Simple text-to-number conversion
-            const numberWords = {
-                'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 
-                'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9,
-                'ten': 10, 'eleven': 11, 'twelve': 12, 'thirteen': 13, 
-                'fourteen': 14, 'fifteen': 15, 'sixteen': 16, 'seventeen': 17,
-                'eighteen': 18, 'nineteen': 19, 'twenty': 20, 'thirty': 30,
-                'forty': 40, 'fifty': 50, 'sixty': 60, 'seventy': 70,
-                'eighty': 80, 'ninety': 90, 'hundred': 100
-            };
 
-            let result = 0;
-            let current = 0;
-            
-            const words = text.split(' ');
-            for (const word of words) {
-                if (numberWords[word] !== undefined) {
-                    const num = numberWords[word];
-                    if (num === 100) {
-                        current *= num;
+            // Text-to-number conversion functions
+            'parse_text_to_number': (inputs) => {
+                if (inputs.length < 1) throw new Error('parse_text_to_number needs 1 input');
+                const text = String(inputs[0]).toLowerCase();
+                
+                // Simple text-to-number conversion
+                const numberWords = {
+                    'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 
+                    'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9,
+                    'ten': 10, 'eleven': 11, 'twelve': 12, 'thirteen': 13, 
+                    'fourteen': 14, 'fifteen': 15, 'sixteen': 16, 'seventeen': 17,
+                    'eighteen': 18, 'nineteen': 19, 'twenty': 20, 'thirty': 30,
+                    'forty': 40, 'fifty': 50, 'sixty': 60, 'seventy': 70,
+                    'eighty': 80, 'ninety': 90, 'hundred': 100
+                };
+
+                let result = 0;
+                let current = 0;
+                
+                const words = text.split(' ');
+                for (const word of words) {
+                    if (numberWords[word] !== undefined) {
+                        const num = numberWords[word];
+                        if (num === 100) {
+                            current *= num;
+                        } else {
+                            current += num;
+                        }
+                    } else if (word === 'and') {
+                        // Ignore 'and'
+                        continue;
                     } else {
-                        current += num;
-                    }
-                } else if (word === 'and') {
-                    // Ignore 'and'
-                    continue;
-                } else {
-                    // Try to parse as direct number
-                    const directNum = Number(word);
-                    if (!isNaN(directNum)) {
-                        current = directNum;
+                        // Try to parse as direct number
+                        const directNum = Number(word);
+                        if (!isNaN(directNum)) {
+                            current = directNum;
+                        }
                     }
                 }
-            }
-            
-            result = current;
-            console.log(`🔤 TEXT_TO_NUMBER: "${text}" → ${result}`);
-            return result;
-        },
+                
+                result = current;
+                console.log(`🔤 TEXT_TO_NUMBER: "${text}" → ${result}`);
+                return result;
+            },
 
-        'clean_mixed_input': (inputs) => {
-            if (inputs.length < 1) throw new Error('clean_mixed_input needs 1 input');
-            const text = String(inputs[0]);
-            
-            // Extract numbers from mixed text
-            const numbers = text.match(/\d+/g);
-            const result = numbers ? Number(numbers[0]) : 0;
-            
-            console.log(`🧹 CLEAN_INPUT: "${text}" → ${result}`);
-            return result;
-        },
+            'clean_mixed_input': (inputs) => {
+                if (inputs.length < 1) throw new Error('clean_mixed_input needs 1 input');
+                const text = String(inputs[0]);
+                
+                // Extract numbers from mixed text
+                const numbers = text.match(/\d+/g);
+                const result = numbers ? Number(numbers[0]) : 0;
+                
+                console.log(`🧹 CLEAN_INPUT: "${text}" → ${result}`);
+                return result;
+            },
 
-        'to_number': (inputs) => {
-            if (inputs.length < 1) throw new Error('to_number needs 1 input');
-            const num = Number(inputs[0]);
-            if (isNaN(num)) throw new Error(`Cannot convert "${inputs[0]}" to number`);
-            console.log(`🔢 TO_NUMBER: "${inputs[0]}" → ${num}`);
-            return num;
-        },
-
-        'is_valid_age': (inputs) => {
-            if (inputs.length < 1) throw new Error('is_valid_age needs 1 input');
-            const age = Number(inputs[0]);
-            const isValid = !isNaN(age) && age >= 0 && age <= 120;
-            console.log(`✅ VALID_AGE: ${age} → ${isValid}`);
-            return isValid;
-        },
-
+            'is_valid_age': (inputs) => {
+                if (inputs.length < 1) throw new Error('is_valid_age needs 1 input');
+                const age = Number(inputs[0]);
+                const isValid = !isNaN(age) && age >= 0 && age <= 120;
+                console.log(`✅ VALID_AGE: ${age} → ${isValid}`);
+                return isValid;
+            },
 
             // Type conversion
             'to_string': (inputs) => {
@@ -154,6 +146,7 @@ export class GlyphEngine {
                 if (inputs.length < 1) throw new Error('to_number needs 1 input');
                 const num = Number(inputs[0]);
                 if (isNaN(num)) throw new Error(`Cannot convert "${inputs[0]}" to number`);
+                console.log(`🔢 TO_NUMBER: "${inputs[0]}" → ${num}`);
                 return num;
             }
         };
