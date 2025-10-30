@@ -1,4 +1,4 @@
-// src/compiler/graph-parser.js - FIXED VERSION
+// src/compiler/graph-parser.js - FIXED CONNECTION PARSING
 export class GraphParser {
     constructor() {
         this.symbols = {
@@ -7,8 +7,12 @@ export class GraphParser {
             '⤶': 'OUTPUT_NODE', '⚡': 'ERROR_NODE', '🔄': 'ASYNC_NODE'
         };
         this.connectionTypes = {
-            '→': 'DATA_FLOW', '⚡': 'ERROR_FLOW', '🔄': 'ASYNC_FLOW',
-            '⤴': 'RETURN_FLOW', '⤵': 'INPUT_FLOW'
+            '→': 'DATA_FLOW', 
+            '←': 'DATA_FLOW',  // FIX: Left arrows are also data flow
+            '⚡': 'ERROR_FLOW', 
+            '🔄': 'ASYNC_FLOW',
+            '⤴': 'RETURN_FLOW', 
+            '⤵': 'INPUT_FLOW'
         };
     }
 
@@ -147,6 +151,9 @@ export class GraphParser {
             }
         });
 
+        // CRITICAL FIX: Correct function output flows
+        this.correctFunctionOutputFlows(nodes, newConnections, lineNum);
+
         // Remove duplicate connections before adding
         const uniqueConnections = this.removeDuplicateConnections(newConnections);
 
@@ -157,8 +164,62 @@ export class GraphParser {
         console.log(`🔗 Line ${lineNum} connections:`, uniqueConnections.map(conn => {
             const fromNode = nodes.find(n => n.id === conn.from);
             const toNode = nodes.find(n => n.id === conn.to);
-            return `${fromNode?.type}(${fromNode?.value}) ${conn.glyph} ${toNode?.type}(${toNode?.value})`;
+            return `${fromNode?.type}("${fromNode?.value}") ${conn.glyph} ${toNode?.type}("${toNode?.value}")`;
         }));
+    }
+
+    correctFunctionOutputFlows(nodes, connections, lineNum) {
+        // Find all function nodes
+        const functionNodes = nodes.filter(node => node.type === 'FUNCTION_NODE');
+        
+        functionNodes.forEach(funcNode => {
+            // Find all inputs to this function
+            const funcInputs = connections.filter(conn => conn.to === funcNode.id);
+            
+            // Find all outputs from the input nodes that go to nodes other than this function
+            funcInputs.forEach(inputConn => {
+                const inputNodeId = inputConn.from;
+                const inputNode = nodes.find(n => n.id === inputNodeId);
+                
+                if (inputNode && ['DATA_NODE', 'TEXT_NODE'].includes(inputNode.type)) {
+                    // Find outputs from this input node that bypass the function
+                    const bypassConnections = connections.filter(conn => 
+                        conn.from === inputNodeId && 
+                        conn.to !== funcNode.id &&
+                        !functionNodes.some(fn => fn.id === conn.to) // Not going to another function
+                    );
+                    
+                    // Replace bypass connections with function output connections
+                    bypassConnections.forEach(bypassConn => {
+                        const existingFuncOutput = connections.find(conn => 
+                            conn.from === funcNode.id && conn.to === bypassConn.to
+                        );
+                        
+                        if (!existingFuncOutput) {
+                            // Add function output connection
+                            connections.push({
+                                from: funcNode.id,
+                                to: bypassConn.to,
+                                type: 'DATA_FLOW',
+                                glyph: '→',
+                                line: lineNum,
+                                corrected: true
+                            });
+                            
+                            // Remove the bypass connection
+                            const bypassIndex = connections.findIndex(conn => 
+                                conn.from === bypassConn.from && conn.to === bypassConn.to
+                            );
+                            if (bypassIndex !== -1) {
+                                connections.splice(bypassIndex, 1);
+                            }
+                            
+                            console.log(`🔄 Corrected flow: ${funcNode.type}("${funcNode.value}") → ${bypassConn.to} (was ${inputNode.type}("${inputNode.value}") → ${bypassConn.to})`);
+                        }
+                    });
+                }
+            });
+        });
     }
 
     removeDuplicateConnections(connections) {
@@ -222,7 +283,7 @@ export class GraphParser {
         
         const orphanedNodes = ast.nodes.filter(node => !connectedNodes.has(node.id));
         if (orphanedNodes.length > 0) {
-            console.warn('⚠️  Found orphaned nodes:', orphanedNodes.map(n => `${n.type}(${n.value})`));
+            console.warn('⚠️  Found orphaned nodes:', orphanedNodes.map(n => `${n.type}("${n.value}")`));
         }
 
         // Check for duplicate node IDs
