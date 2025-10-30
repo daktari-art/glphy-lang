@@ -108,13 +108,15 @@ export class GlyphEngine {
 
         console.log(`🔮 Loaded program: ${this.nodes.size} nodes, ${this.connections.length} connections`);
         
-        // DEBUG: Log all connections to verify multi-input detection
-        console.log('🔗 CONNECTION MAP:');
-        this.connections.forEach(conn => {
-            const fromNode = this.nodes.get(conn.from);
-            const toNode = this.nodes.get(conn.to);
-            if (fromNode && toNode) {
-                console.log(`   ${fromNode.type}(${fromNode.value}) → ${toNode.type}(${toNode.value})`);
+        // DEBUG: Enhanced connection verification
+        console.log('🔗 CONNECTION VERIFICATION:');
+        this.nodes.forEach((node, id) => {
+            console.log(`   ${node.type}("${node.value}"): ${node.inputs.length} inputs, ${node.outputs.length} outputs`);
+            if (node.inputs.length > 0) {
+                console.log(`     Inputs: ${node.inputs.map(inputId => {
+                    const inputNode = this.nodes.get(inputId);
+                    return `${inputNode?.type}("${inputNode?.value}")`;
+                }).join(', ')}`);
             }
         });
         
@@ -179,7 +181,7 @@ export class GlyphEngine {
         this.executionOrder = order;
         console.log(`📋 Execution order:`, order.map(id => {
             const node = this.nodes.get(id);
-            return `${node.type}(${node.value})`;
+            return `${node.type}("${node.value}")`;
         }));
     }
 
@@ -229,10 +231,13 @@ export class GlyphEngine {
         }
 
         // Execute ALL input nodes first and collect ALL their results
-        const inputPromises = node.inputs.map(inputId => this.executeNode(inputId));
-        const inputResults = await Promise.all(inputPromises);
+        const inputResults = [];
+        for (const inputId of node.inputs) {
+            const result = await this.executeNode(inputId);
+            inputResults.push(result);
+        }
 
-        console.log(`▶️ Executing ${node.type}: ${node.value}`);
+        console.log(`▶️ Executing ${node.type}: "${node.value}"`);
         console.log(`   Inputs received: [${inputResults.join(', ')}]`);
         
         try {
