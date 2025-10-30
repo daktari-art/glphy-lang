@@ -1,193 +1,101 @@
-// src/runtime/runtime.js
-export class GlyphRuntime {
+// src/runtime/simple-engine.js (IMPROVED VERSION)
+export class SimpleGlyphEngine {
     constructor() {
-        this.environment = new Map();
-        this.executionStack = [];
-        this.outputBuffer = [];
-        this.errorHandler = null;
-    }
-
-    initialize() {
-        this.environment.clear();
-        this.executionStack = [];
-        this.outputBuffer = [];
-        
-        // Initialize built-in variables
-        this.setVariable('π', Math.PI);
-        this.setVariable('e', Math.E);
-        this.setVariable('true', true);
-        this.setVariable('false', false);
-        this.setVariable('null', null);
-        this.setVariable('undefined', undefined);
-        
-        console.log('🔮 Glyph Runtime initialized');
-    }
-
-    setVariable(name, value) {
-        this.environment.set(name, value);
-        return value;
-    }
-
-    getVariable(name) {
-        if (this.environment.has(name)) {
-            return this.environment.get(name);
-        }
-        throw new Error(`Undefined variable: ${name}`);
-    }
-
-    hasVariable(name) {
-        return this.environment.has(name);
-    }
-
-    pushExecutionContext(context) {
-        this.executionStack.push({
-            variables: new Map(this.environment),
-            ...context
-        });
-    }
-
-    popExecutionContext() {
-        if (this.executionStack.length > 0) {
-            const context = this.executionStack.pop();
-            this.environment = context.variables;
-            return context;
-        }
-        return null;
-    }
-
-    output(value) {
-        const outputLine = `[${new Date().toISOString()}] ${value}`;
-        this.outputBuffer.push(outputLine);
-        console.log('📤', value);
-        return value;
-    }
-
-    getOutput() {
-        return [...this.outputBuffer];
-    }
-
-    clearOutput() {
-        this.outputBuffer = [];
-    }
-
-    setErrorHandler(handler) {
-        this.errorHandler = handler;
-    }
-
-    handleError(error, node = null) {
-        const errorInfo = {
-            message: error.message,
-            node: node,
-            timestamp: Date.now(),
-            stack: error.stack
-        };
-
-        this.output(`❌ ERROR: ${error.message}`);
-        
-        if (this.errorHandler) {
-            return this.errorHandler(errorInfo);
-        }
-        
-        throw error;
-    }
-
-    // Type checking utilities
-    getType(value) {
-        if (value === null) return 'null';
-        if (value === undefined) return 'undefined';
-        if (Array.isArray(value)) return 'array';
-        return typeof value;
-    }
-
-    isNumber(value) {
-        return typeof value === 'number' && !isNaN(value);
-    }
-
-    isString(value) {
-        return typeof value === 'string';
-    }
-
-    isBoolean(value) {
-        return typeof value === 'boolean';
-    }
-
-    isArray(value) {
-        return Array.isArray(value);
-    }
-
-    // Conversion utilities
-    toNumber(value) {
-        if (this.isNumber(value)) return value;
-        const num = Number(value);
-        if (isNaN(num)) throw new Error(`Cannot convert "${value}" to number`);
-        return num;
-    }
-
-    toString(value) {
-        if (value === null) return 'null';
-        if (value === undefined) return 'undefined';
-        return String(value);
-    }
-
-    toBoolean(value) {
-        if (this.isBoolean(value)) return value;
-        return Boolean(value);
-    }
-
-    // Math utilities
-    mathOperation(operation, values) {
-        if (!values.every(v => this.isNumber(v))) {
-            throw new Error(`All inputs must be numbers for ${operation}`);
-        }
-
-        switch (operation) {
-            case 'add': return values.reduce((a, b) => a + b, 0);
-            case 'subtract': return values.reduce((a, b) => a - b);
-            case 'multiply': return values.reduce((a, b) => a * b, 1);
-            case 'divide': return values.reduce((a, b) => a / b);
-            case 'power': return values.reduce((a, b) => Math.pow(a, b));
-            default: throw new Error(`Unknown math operation: ${operation}`);
-        }
-    }
-
-    // String utilities
-    stringOperation(operation, values) {
-        const strings = values.map(v => this.toString(v));
-        
-        switch (operation) {
-            case 'concat': return strings.join('');
-            case 'upper': return strings[0].toUpperCase();
-            case 'lower': return strings[0].toLowerCase();
-            case 'length': return strings[0].length;
-            case 'trim': return strings[0].trim();
-            default: throw new Error(`Unknown string operation: ${operation}`);
-        }
-    }
-
-    // Debug utilities
-    debugNode(node, value) {
-        const debugInfo = {
-            nodeId: node.id,
-            nodeType: node.type,
-            value: node.value,
-            result: value,
-            timestamp: Date.now()
-        };
-        
-        console.log('🐛 DEBUG:', debugInfo);
-        return value;
-    }
-
-    getEnvironmentSnapshot() {
-        return {
-            variables: Object.fromEntries(this.environment),
-            executionStack: this.executionStack.length,
-            outputCount: this.outputBuffer.length
+        this.functions = {
+            'multiply': (a, b) => a * b,
+            'add': (a, b) => a + b,
+            'print': (x) => { console.log('📤', x); return x; },
+            'to_upper': (s) => s.toUpperCase(),
+            'concat': (a, b) => String(a) + String(b)
         };
     }
 
-    reset() {
-        this.initialize();
-        console.log('🔄 Glyph Runtime reset');
+    parseAndExecute(code) {
+        const lines = code.split('\n').filter(line => line.trim());
+        
+        for (const line of lines) {
+            console.log(`🔍 Processing: ${line}`);
+            this.executeLine(line);
+        }
+    }
+
+    executeLine(line) {
+        try {
+            // Handle multi-input: [data] → [function] ← [data] ← [data]...
+            const multiInputMatch = line.match(/\[○\s+(\d+)\]\s*→\s*\[▷\s+(\w+)\](?:\s*←\s*\[○\s+(\d+)\])+/);
+            if (multiInputMatch) {
+                return this.handleMultiInput(line, multiInputMatch);
+            }
+
+            // Handle triple+ inputs: [data] → [function] ← [data] ← [data]
+            const tripleInputMatch = line.match(/\[○\s+(\d+)\]\s*→\s*\[▷\s+(\w+)\]\s*←\s*\[○\s+(\d+)\]\s*←\s*\[○\s+(\d+)\]/);
+            if (tripleInputMatch) {
+                const [_, input1, funcName, input2, input3] = tripleInputMatch;
+                console.log(`🎯 Found triple-input: ${input1} → ${funcName} ← ${input2} ← ${input3}`);
+                
+                if (this.functions[funcName]) {
+                    const result = this.functions[funcName](
+                        this.functions[funcName](Number(input1), Number(input2)),
+                        Number(input3)
+                    );
+                    console.log(`✅ ${funcName}(${input1}, ${input2}, ${input3}) = ${result}`);
+                    return result;
+                }
+            }
+
+            // Handle simple flows: [data] → [function]
+            const simpleMatch = line.match(/\[□\s+"([^"]+)"\]\s*→\s*\[▷\s+(\w+)\]/);
+            if (simpleMatch) {
+                const [_, text, funcName] = simpleMatch;
+                console.log(`🎯 Found simple flow: "${text}" → ${funcName}`);
+                
+                if (this.functions[funcName]) {
+                    const result = this.functions[funcName](text);
+                    console.log(`✅ ${funcName}("${text}") = "${result}"`);
+                    return result;
+                }
+            }
+
+            // Handle mixed concat: [text] → [concat] ← [number]
+            const mixedConcatMatch = line.match(/\[□\s+"([^"]+)"\]\s*→\s*\[▷\s+concat\]\s*←\s*\[○\s+(\d+)\]/);
+            if (mixedConcatMatch) {
+                const [_, text, number] = mixedConcatMatch;
+                console.log(`🎯 Found mixed concat: "${text}" → concat ← ${number}`);
+                
+                const result = String(text) + String(number);
+                console.log(`✅ concat("${text}", ${number}) = "${result}"`);
+                return result;
+            }
+
+            console.log(`❌ Could not parse: ${line}`);
+            
+        } catch (error) {
+            console.log(`💥 Error in line: ${error.message}`);
+        }
+    }
+
+    handleMultiInput(line, match) {
+        // Extract all inputs using a more flexible approach
+        const inputs = [];
+        const funcName = match[2];
+        
+        // Find all [○ number] patterns
+        const inputMatches = line.matchAll(/\[○\s+(\d+)\]/g);
+        for (const inputMatch of inputMatches) {
+            inputs.push(Number(inputMatch[1]));
+        }
+        
+        console.log(`🎯 Found multi-input: ${inputs.join(' → ')} → ${funcName}`);
+        
+        if (this.functions[funcName] && inputs.length >= 2) {
+            let result = inputs[0];
+            for (let i = 1; i < inputs.length; i++) {
+                result = this.functions[funcName](result, inputs[i]);
+            }
+            console.log(`✅ ${funcName}(${inputs.join(', ')}) = ${result}`);
+            return result;
+        } else {
+            throw new Error(`Function ${funcName} not found or insufficient inputs`);
+        }
     }
 }
