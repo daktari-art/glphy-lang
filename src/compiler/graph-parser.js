@@ -1,4 +1,6 @@
 // src/compiler/graph-parser.js
+// Add this debug method to graph-parser.js to verify connections
+parseGraphConnections(line, ast, nodes, lineNum) {
 export class GraphParser {
     constructor() {
         this.symbols = {
@@ -213,4 +215,13 @@ export class GraphParser {
             throw new Error(`Duplicate node IDs found: ${duplicates.join(', ')}`);
         }
     }
+}
+    // DEBUG: Log the connections we're creating
+    console.log(`🔗 Line ${lineNum} connections:`, connections.map(conn => {
+        const fromNode = nodes.find(n => n.id === conn.from);
+        const toNode = nodes.find(n => n.id === conn.to);
+        return `${fromNode?.glyph}(${fromNode?.value}) → ${toNode?.glyph}(${toNode?.value})`;
+    }));
+
+    ast.connections.push(...connections);
 }
