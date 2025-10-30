@@ -71,30 +71,35 @@ export class GlyphCompiler {
     }
 
     validate(ast) {
-        const errors = [];
-        
-        // Check for undefined function calls
-        ast.nodes.forEach(node => {
-            if (node.type === 'FUNCTION_NODE') {
-                const validFunctions = ['multiply', 'add', 'subtract', 'divide', 'print', 'to_upper', 'to_lower', 'concat'];
-                if (!validFunctions.includes(node.value)) {
-                    errors.push(`Undefined function: ${node.value} at line ${node.line}`);
-                }
+    const errors = [];
+    
+    // Check for undefined function calls
+    ast.nodes.forEach(node => {
+        if (node.type === 'FUNCTION_NODE') {
+            const validFunctions = [
+                'multiply', 'add', 'subtract', 'divide', 'print', 
+                'to_upper', 'to_lower', 'concat', 'length', 'exponent',
+                'to_string', 'to_number', 'parse_text_to_number', 
+                'clean_mixed_input', 'is_valid_age'  // ADDED
+            ];
+            if (!validFunctions.includes(node.value)) {
+                errors.push(`Undefined function: ${node.value} at line ${node.line}`);
             }
-        });
+        }
+    });
 
-        // Check connection validity
-        ast.connections.forEach(conn => {
-            const fromNode = ast.nodes.find(n => n.id === conn.from);
-            const toNode = ast.nodes.find(n => n.id === conn.to);
-            
-            if (!fromNode) errors.push(`Connection from undefined node: ${conn.from}`);
-            if (!toNode) errors.push(`Connection to undefined node: ${conn.to}`);
-        });
+    // Check connection validity
+    ast.connections.forEach(conn => {
+        const fromNode = ast.nodes.find(n => n.id === conn.from);
+        const toNode = ast.nodes.find(n => n.id === conn.to);
+        
+        if (!fromNode) errors.push(`Connection from undefined node: ${conn.from}`);
+        if (!toNode) errors.push(`Connection to undefined node: ${conn.to}`);
+    });
 
-        return {
-            valid: errors.length === 0,
-            errors: errors
-        };
-    }
+    return {
+        valid: errors.length === 0,
+        errors: errors
+    };
+}
 }
