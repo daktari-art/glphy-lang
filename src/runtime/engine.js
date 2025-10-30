@@ -1,4 +1,4 @@
-// src/runtime/engine.js
+// src/runtime/engine.js - FIXED MULTI-INPUT VERSION
 export class GlyphEngine {
     constructor() {
         this.nodes = new Map();
@@ -13,8 +13,13 @@ export class GlyphEngine {
         return {
             // Math operations
             'multiply': (inputs) => {
-                if (inputs.length < 2) throw new Error('Multiply needs at least 2 inputs');
-                return inputs.reduce((a, b) => a * b, 1);
+                console.log(`🔢 MULTIPLY called with inputs:`, inputs);
+                if (inputs.length < 2) {
+                    throw new Error(`Multiply needs at least 2 inputs, got ${inputs.length}`);
+                }
+                const result = inputs.reduce((a, b) => a * b, 1);
+                console.log(`🔢 MULTIPLY result: ${inputs.join(' × ')} = ${result}`);
+                return result;
             },
             'add': (inputs) => {
                 if (inputs.length < 2) throw new Error('Add needs at least 2 inputs');
@@ -32,10 +37,6 @@ export class GlyphEngine {
             'exponent': (inputs) => {
                 if (inputs.length < 2) throw new Error('Exponent needs base and exponent');
                 return Math.pow(inputs[0], inputs[1]);
-            },
-            'modulo': (inputs) => {
-                if (inputs.length < 2) throw new Error('Modulo needs 2 inputs');
-                return inputs[0] % inputs[1];
             },
 
             // Text operations
@@ -63,60 +64,6 @@ export class GlyphEngine {
                 this.output.push(output);
                 console.log(output);
                 return inputs[0];
-            },
-
-            // Type conversion
-            'to_string': (inputs) => {
-                if (inputs.length < 1) throw new Error('to_string needs 1 input');
-                return String(inputs[0]);
-            },
-            'to_number': (inputs) => {
-                if (inputs.length < 1) throw new Error('to_number needs 1 input');
-                const num = Number(inputs[0]);
-                if (isNaN(num)) throw new Error(`Cannot convert "${inputs[0]}" to number`);
-                return num;
-            },
-
-            // Text parsing (for user input scenarios)
-            'extract_number': (inputs) => {
-                if (inputs.length < 1) throw new Error('extract_number needs 1 input');
-                const text = String(inputs[0]);
-                const numbers = text.match(/\d+/g);
-                return numbers ? parseInt(numbers[0]) : null;
-            },
-            'parse_text_to_number': (inputs) => {
-                if (inputs.length < 1) throw new Error('parse_text_to_number needs 1 input');
-                const text = String(inputs[0]).toLowerCase().trim();
-                const numberWords = {
-                    'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
-                    'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
-                    'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14,
-                    'fifteen': 15, 'sixteen': 16, 'seventeen': 17, 'eighteen': 18,
-                    'nineteen': 19, 'twenty': 20, 'thirty': 30, 'forty': 40,
-                    'fifty': 50, 'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90
-                };
-                
-                // Direct match
-                if (numberWords[text] !== undefined) return numberWords[text];
-                
-                // Pattern like "twenty five"
-                const words = text.split(/\s+/);
-                if (words.length === 2 && numberWords[words[0]] && numberWords[words[1]]) {
-                    return numberWords[words[0]] + numberWords[words[1]];
-                }
-                
-                return null;
-            },
-            'clean_mixed_input': (inputs) => {
-                if (inputs.length < 1) throw new Error('clean_mixed_input needs 1 input');
-                const text = String(inputs[0]);
-                const match = text.match(/(\d+)/);
-                return match ? parseInt(match[0]) : null;
-            },
-            'is_valid_age': (inputs) => {
-                if (inputs.length < 1) throw new Error('is_valid_age needs 1 input');
-                const age = inputs[0];
-                return age !== null && age >= 0 && age <= 120;
             }
         };
     }
@@ -142,6 +89,15 @@ export class GlyphEngine {
         });
 
         console.log(`🔮 Loaded program: ${this.nodes.size} nodes, ${this.connections.length} connections`);
+        
+        // DEBUG: Log all connections to verify multi-input detection
+        console.log('🔗 CONNECTION MAP:');
+        this.connections.forEach(conn => {
+            const fromNode = this.nodes.get(conn.from);
+            const toNode = this.nodes.get(conn.to);
+            console.log(`   ${fromNode?.type}(${fromNode?.value}) → ${toNode?.type}(${toNode?.value})`);
+        });
+        
         this.buildExecutionOrder();
     }
 
@@ -167,17 +123,19 @@ export class GlyphEngine {
             nodeDependencies.set(id, new Set(node.inputs));
         });
 
-        // Topological sort
+        // Topological sort - visit dependencies first
         const visit = (nodeId) => {
             if (visited.has(nodeId)) return;
             visited.add(nodeId);
 
             const dependencies = nodeDependencies.get(nodeId);
-            dependencies.forEach(depId => {
-                if (!visited.has(depId)) {
-                    visit(depId);
-                }
-            });
+            if (dependencies) {
+                dependencies.forEach(depId => {
+                    if (!visited.has(depId)) {
+                        visit(depId);
+                    }
+                });
+            }
 
             order.push(nodeId);
         };
@@ -195,7 +153,10 @@ export class GlyphEngine {
         }
 
         this.executionOrder = order;
-        console.log(`📋 Execution order: ${this.executionOrder.length} nodes`);
+        console.log(`📋 Execution order:`, this.executionOrder.map(id => {
+            const node = this.nodes.get(id);
+            return `${node.type}(${node.value})`;
+        }));
     }
 
     async execute() {
@@ -239,13 +200,16 @@ export class GlyphEngine {
 
     async executeNode(nodeId) {
         const node = this.nodes.get(nodeId);
-        if (!node || node.executed) return node?.result;
+        if (!node || node.executed) {
+            return node?.result;
+        }
 
-        // Execute all input nodes first
+        // Execute ALL input nodes first and collect ALL their results
         const inputPromises = node.inputs.map(inputId => this.executeNode(inputId));
         const inputResults = await Promise.all(inputPromises);
 
-        console.log(`▶️ Executing ${node.type} (${nodeId}): ${node.value}`);
+        console.log(`▶️ Executing ${node.type}: ${node.value}`);
+        console.log(`   Inputs received: [${inputResults.join(', ')}]`);
         
         try {
             let result;
@@ -264,10 +228,6 @@ export class GlyphEngine {
                     
                 case 'OUTPUT_NODE':
                     result = this.executeOutput(inputResults[0]);
-                    break;
-                    
-                case 'ERROR_NODE':
-                    result = this.executeError(node, inputResults);
                     break;
                     
                 default:
@@ -310,6 +270,9 @@ export class GlyphEngine {
     async executeFunction(node, inputs) {
         const funcName = node.value;
         
+        console.log(`🎯 Calling function: ${funcName}`);
+        console.log(`   Input values:`, inputs);
+        
         if (this.builtinFunctions[funcName]) {
             return this.builtinFunctions[funcName](inputs);
         }
@@ -322,11 +285,6 @@ export class GlyphEngine {
         this.output.push(output);
         console.log(output);
         return input;
-    }
-
-    executeError(node, inputs) {
-        const errorMessage = inputs[0] || node.value;
-        throw new Error(`ERROR_NODE: ${errorMessage}`);
     }
 
     getExecutionResult() {
@@ -356,13 +314,5 @@ export class GlyphEngine {
             },
             executionHistory: this.executionHistory
         };
-    }
-
-    // Utility method for direct function execution
-    async executeFunctionByName(funcName, ...args) {
-        if (this.builtinFunctions[funcName]) {
-            return this.builtinFunctions[funcName](args);
-        }
-        throw new Error(`Unknown function: ${funcName}`);
     }
 }
