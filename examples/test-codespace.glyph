@@ -1,3 +1,5 @@
+[○ 12] → [▷ multiply] ← [○ 12] → [▷ print]
+[□ "Codespaces is working!"] → [▷ to_upper] → [▷ print]
 # User Input Processing Examples
 # These simulate processing different input formats
 
