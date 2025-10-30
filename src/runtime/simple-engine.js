@@ -1,4 +1,4 @@
-// src/runtime/simple-engine.js - FIXED CONCATENATION VERSION
+// src/runtime/simple-engine.js - WITH CHAINING FIX
 export class SimpleGlyphEngine {
     constructor() {
         this.functions = {
@@ -19,19 +19,52 @@ export class SimpleGlyphEngine {
         
         for (const line of lines) {
             console.log(`🔍 Processing: ${line}`);
-            this.executeLine(line);
+            let currentLine = line;
+            let previousResult = null;
+            
+            // Keep processing the line until no more functions found
+            while (this.hasFunctions(currentLine)) {
+                const result = this.executeNextFunction(currentLine, previousResult);
+                if (result !== undefined) {
+                    previousResult = result;
+                    // Remove the processed part from the line
+                    currentLine = this.removeProcessedPart(currentLine, result);
+                } else {
+                    break;
+                }
+            }
         }
     }
 
-    executeLine(line) {
+    hasFunctions(line) {
+        return line.includes('[▷');
+    }
+
+    executeNextFunction(line, previousResult) {
         try {
-            // FIX 1: Handle multiple text concatenation
+            // If we have a previous result, look for functions that can use it
+            if (previousResult !== null) {
+                const continuationMatch = line.match(/→\s*\[▷\s+(\w+)\](?:\s*←\s*\[(?:○|□)\s+([^\]]+)\])?/);
+                if (continuationMatch) {
+                    const [_, funcName, input] = continuationMatch;
+                    console.log(`🔄 Chaining: ${previousResult} → ${funcName}${input ? ` ← ${input}` : ''}`);
+                    
+                    if (this.functions[funcName]) {
+                        const inputs = input ? [previousResult, this.parseValue(input)] : [previousResult];
+                        const result = this.functions[funcName](inputs);
+                        console.log(`✅ ${funcName} chain result: ${result}`);
+                        return result;
+                    }
+                }
+            }
+
+            // Handle multi-text concatenation
             const multiTextConcatMatch = line.match(/\[□\s+"([^"]*)"\]\s*→\s*\[▷\s+concat\](?:\s*←\s*\[□\s+"([^"]*)"\])+/);
             if (multiTextConcatMatch) {
                 return this.handleMultiTextConcat(line);
             }
 
-            // FIX 2: Handle mixed type concatenation
+            // Handle mixed type concatenation
             const mixedConcatMatch = line.match(/\[□\s+"([^"]*)"\]\s*→\s*\[▷\s+concat\]\s*←\s*\[○\s+(\d+)\]/);
             if (mixedConcatMatch) {
                 const [_, text, number] = mixedConcatMatch;
@@ -41,17 +74,7 @@ export class SimpleGlyphEngine {
                 return result;
             }
 
-            // FIX 3: Handle empty strings
-            const emptyStringMatch = line.match(/\[□\s+""\]\s*→\s*\[▷\s+concat\]\s*←\s*\[□\s+"([^"]+)"\]/);
-            if (emptyStringMatch) {
-                const [_, text] = emptyStringMatch;
-                console.log(`🎯 Empty string concat: "" + "${text}"`);
-                const result = text;
-                console.log(`✅ concat("", "${text}") = "${result}"`);
-                return result;
-            }
-
-            // Handle multi-input arithmetic (this works)
+            // Handle multi-input arithmetic
             const multiInputMatch = line.match(/\[○\s+(\d+)\]\s*→\s*\[▷\s+(\w+)\](?:\s*←\s*\[○\s+(\d+)\])+/);
             if (multiInputMatch) {
                 return this.handleMultiInput(line, multiInputMatch);
@@ -70,15 +93,29 @@ export class SimpleGlyphEngine {
                 }
             }
 
-            console.log(`❌ Could not parse: ${line}`);
+            console.log(`❌ Could not parse remaining: ${line}`);
+            return undefined;
             
         } catch (error) {
             console.log(`💥 Error in line: ${error.message}`);
+            return undefined;
         }
     }
 
+    removeProcessedPart(line, result) {
+        // Remove the first function and its inputs from the line
+        // This is a simplified approach - in a real parser we'd track positions
+        if (line.includes('→ [▷ concat] ← [○')) {
+            return line.replace(/\[□\s+"[^"]*"\]\s*→\s*\[▷\s+concat\]\s*←\s*\[○\s+\d+\]/, `"${result}"`);
+        } else if (line.includes('→ [▷ concat] ← [□')) {
+            return line.replace(/\[□\s+"[^"]*"\]\s*→\s*\[▷\s+concat\](?:\s*←\s*\[□\s+"[^"]*"\])+/, `"${result}"`);
+        } else if (line.includes('→ [▷ multiply] ← [○')) {
+            return line.replace(/\[○\s+\d+\]\s*→\s*\[▷\s+multiply\](?:\s*←\s*\[○\s+\d+\])+/, result.toString());
+        }
+        return line;
+    }
+
     handleMultiTextConcat(line) {
-        // Extract ALL text inputs from the line
         const textMatches = line.matchAll(/\[□\s+"([^"]*)"\]/g);
         const texts = [];
         
@@ -96,7 +133,6 @@ export class SimpleGlyphEngine {
         const inputs = [];
         const funcName = match[2];
         
-        // Find all [○ number] patterns
         const inputMatches = line.matchAll(/\[○\s+(\d+)\]/g);
         for (const inputMatch of inputMatches) {
             inputs.push(Number(inputMatch[1]));
@@ -111,5 +147,16 @@ export class SimpleGlyphEngine {
         } else {
             throw new Error(`Function ${funcName} not found or insufficient inputs`);
         }
+    }
+
+    parseValue(value) {
+        if (!isNaN(value)) return Number(value);
+        if (value === 'true') return true;
+        if (value === 'false') return false;
+        if ((value.startsWith('"') && value.endsWith('"')) || 
+            (value.startsWith("'") && value.endsWith("'"))) {
+            return value.slice(1, -1);
+        }
+        return value;
     }
 }
