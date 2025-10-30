@@ -1,4 +1,4 @@
-// src/compiler/graph-parser.js - CORRECTED VERSION
+// src/compiler/graph-parser.js - FIXED VERSION
 export class GraphParser {
     constructor() {
         this.symbols = {
@@ -121,11 +121,11 @@ export class GraphParser {
                 let fromNode, toNode;
                 
                 if (arrow.glyph === '←') {
-                    // Left arrow: right → left
+                    // Left arrow: data flows FROM right node TO left node
                     fromNode = rightNode;
                     toNode = leftNode;
                 } else {
-                    // Right arrow and others: left → right
+                    // Right arrow and others: data flows FROM left node TO right node
                     fromNode = leftNode;
                     toNode = rightNode;
                 }
@@ -147,29 +147,33 @@ export class GraphParser {
             }
         });
 
-        // Auto-connect sequential nodes if no explicit arrows (backward compatibility)
-        if (arrows.length === 0 && nodes.length > 1) {
-            for (let i = 0; i < nodes.length - 1; i++) {
-                newConnections.push({
-                    from: nodes[i].id,
-                    to: nodes[i+1].id,
-                    type: 'DATA_FLOW',
-                    glyph: '→',
-                    line: lineNum,
-                    implicit: true
-                });
-            }
-        }
+        // Remove duplicate connections before adding
+        const uniqueConnections = this.removeDuplicateConnections(newConnections);
 
-        // Add all new connections to AST
-        ast.connections.push(...newConnections);
+        // Add all unique connections to AST
+        ast.connections.push(...uniqueConnections);
 
         // DEBUG: Log the connections we're creating
-        console.log(`🔗 Line ${lineNum} connections:`, newConnections.map(conn => {
+        console.log(`🔗 Line ${lineNum} connections:`, uniqueConnections.map(conn => {
             const fromNode = nodes.find(n => n.id === conn.from);
             const toNode = nodes.find(n => n.id === conn.to);
-            return `${fromNode?.glyph}(${fromNode?.value}) → ${toNode?.glyph}(${toNode?.value})`;
+            return `${fromNode?.type}(${fromNode?.value}) ${conn.glyph} ${toNode?.type}(${toNode?.value})`;
         }));
+    }
+
+    removeDuplicateConnections(connections) {
+        const unique = [];
+        const seen = new Set();
+        
+        connections.forEach(conn => {
+            const key = `${conn.from}->${conn.to}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                unique.push(conn);
+            }
+        });
+        
+        return unique;
     }
 
     findClosestNodeLeft(nodes, position) {
@@ -206,6 +210,9 @@ export class GraphParser {
     }
 
     validateGraph(ast) {
+        // Remove duplicate connections from entire AST
+        ast.connections = this.removeDuplicateConnections(ast.connections);
+
         // Check for orphaned nodes
         const connectedNodes = new Set();
         ast.connections.forEach(conn => {
@@ -215,7 +222,7 @@ export class GraphParser {
         
         const orphanedNodes = ast.nodes.filter(node => !connectedNodes.has(node.id));
         if (orphanedNodes.length > 0) {
-            console.warn('⚠️  Found orphaned nodes:', orphanedNodes.map(n => n.id));
+            console.warn('⚠️  Found orphaned nodes:', orphanedNodes.map(n => `${n.type}(${n.value})`));
         }
 
         // Check for duplicate node IDs
