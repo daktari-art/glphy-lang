@@ -1,38 +1,57 @@
-// test-main-engine.js
+// test-main-engine.js - UPDATED WITH CORRECTED SYNTAX
 import { GlyphCompiler } from './src/compiler/core.js';
 import { GlyphEngine } from './src/runtime/engine.js';
 
 const compiler = new GlyphCompiler();
 const engine = new GlyphEngine();
 
-console.log('🧪 TESTING FIXED MAIN ENGINE');
+console.log('🧪 TESTING FIXED MAIN ENGINE WITH CORRECTED CONNECTIONS');
 console.log('='.repeat(50));
 
 const testCases = [
     {
         name: 'Multi-input Multiplication',
-        code: '[○ 12] → [▷ multiply] ← [○ 12] → [▷ print]',
+        code: `[○ 12] → [▷ multiply] ← [○ 12]
+[▷ multiply] → [▷ print]`,
         expected: '144'
     },
     {
         name: 'Multi-text Concatenation', 
-        code: '[□ "hello"] → [▷ concat] ← [□ " "] ← [□ "world"] → [▷ print]',
+        code: `[□ "hello"] → [▷ concat] ← [□ " "] ← [□ "world"]
+[▷ concat] → [▷ print]`,
         expected: 'hello world'
     },
     {
         name: 'Mixed Type Concatenation',
-        code: '[□ "Result: "] → [▷ concat] ← [○ 100] → [▷ print]',
+        code: `[□ "Result: "] → [▷ concat] ← [○ 100]
+[▷ concat] → [▷ print]`,
         expected: 'Result: 100'
     },
     {
         name: 'Triple Multiplication',
-        code: '[○ 2] → [▷ multiply] ← [○ 3] ← [○ 4] → [▷ print]',
+        code: `[○ 2] → [▷ multiply] ← [○ 3] ← [○ 4]
+[▷ multiply] → [▷ print]`,
         expected: '24'
     },
     {
         name: 'Text Transformation',
         code: '[□ "hello"] → [▷ to_upper] → [▷ print]',
         expected: 'HELLO'
+    },
+    {
+        name: 'Chained Operations',
+        code: `[○ 5] → [▷ multiply] ← [○ 6]
+[▷ multiply] → [▷ add] ← [○ 10]
+[▷ add] → [▷ print]`,
+        expected: '40'
+    },
+    {
+        name: 'Complex Text Pipeline',
+        code: `[□ " hello "] → [▷ concat] ← [□ "world"]
+[▷ concat] → [▷ to_upper] 
+[▷ to_upper] → [▷ concat] ← [□ "!"]
+[▷ concat] → [▷ print]`,
+        expected: 'HELLO WORLD!'
     }
 ];
 
@@ -72,7 +91,7 @@ async function runTests() {
     console.log(`📊 RESULTS: ${passed} passed, ${failed} failed, ${testCases.length} total`);
     
     if (failed === 0) {
-        console.log('🎉 MAIN ENGINE FIXED! Multi-input breakthrough confirmed!');
+        console.log('🎉 MAIN ENGINE FIXED! Connection parsing working correctly!');
     } else {
         console.log('⚠️ Some tests failed - check connection parsing');
     }
