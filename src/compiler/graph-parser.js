@@ -1,6 +1,4 @@
-// src/compiler/graph-parser.js
-// Add this debug method to graph-parser.js to verify connections
-parseGraphConnections(line, ast, nodes, lineNum) {
+// src/compiler/graph-parser.js - CORRECTED VERSION
 export class GraphParser {
     constructor() {
         this.symbols = {
@@ -99,6 +97,8 @@ export class GraphParser {
     }
 
     parseGraphConnections(line, ast, nodes, lineNum) {
+        const newConnections = [];
+
         // Find ALL arrows and their positions
         const arrowRegex = /(→|←|⚡|🔄|⤴|⤵)/g;
         const arrows = [];
@@ -136,7 +136,7 @@ export class GraphParser {
                 );
                 
                 if (!existingConn) {
-                    ast.connections.push({
+                    newConnections.push({
                         from: fromNode.id,
                         to: toNode.id,
                         type: arrow.type,
@@ -150,7 +150,7 @@ export class GraphParser {
         // Auto-connect sequential nodes if no explicit arrows (backward compatibility)
         if (arrows.length === 0 && nodes.length > 1) {
             for (let i = 0; i < nodes.length - 1; i++) {
-                ast.connections.push({
+                newConnections.push({
                     from: nodes[i].id,
                     to: nodes[i+1].id,
                     type: 'DATA_FLOW',
@@ -160,6 +160,16 @@ export class GraphParser {
                 });
             }
         }
+
+        // Add all new connections to AST
+        ast.connections.push(...newConnections);
+
+        // DEBUG: Log the connections we're creating
+        console.log(`🔗 Line ${lineNum} connections:`, newConnections.map(conn => {
+            const fromNode = nodes.find(n => n.id === conn.from);
+            const toNode = nodes.find(n => n.id === conn.to);
+            return `${fromNode?.glyph}(${fromNode?.value}) → ${toNode?.glyph}(${toNode?.value})`;
+        }));
     }
 
     findClosestNodeLeft(nodes, position) {
@@ -215,13 +225,4 @@ export class GraphParser {
             throw new Error(`Duplicate node IDs found: ${duplicates.join(', ')}`);
         }
     }
-}
-    // DEBUG: Log the connections we're creating
-    console.log(`🔗 Line ${lineNum} connections:`, connections.map(conn => {
-        const fromNode = nodes.find(n => n.id === conn.from);
-        const toNode = nodes.find(n => n.id === conn.to);
-        return `${fromNode?.glyph}(${fromNode?.value}) → ${toNode?.glyph}(${toNode?.value})`;
-    }));
-
-    ast.connections.push(...connections);
 }
