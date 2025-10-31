@@ -1,13 +1,16 @@
 {
   "name": "@glyph-lang/core",
   "version": "0.3.0",
-  "description": "Glyph Language - Visual Data Flow Programming with Graph Execution",
+  "description": "Glyph Language - Visual Data Flow Programming with Graph Execution, Type Annotations, and Scoping",
   "main": "src/cli.js",
   "type": "module",
+  "bin": {
+    "glyph": "./src/cli.js"
+  },
   "scripts": {
     "start": "node src/cli.js",
     "test": "node test-run.js",
-    "dev": "node --watch src/cli.js run examples/hello-world.glyph",
+    "dev": "node --watch src/cli.js run examples/fibonacci.glyph",
     "repl": "node src/cli.js repl",
     "compile": "node src/cli.js compile examples/hello-world.glyph",
     "parse": "node src/cli.js parse examples/arithmetic.glyph",
@@ -21,16 +24,13 @@
     "glyph",
     "graph-execution",
     "functional-programming",
-    "types"
+    "type-inference"
   ],
   "author": "Daktari Art",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/daktari-art/glyph-lang"
-  },
-  "bin": {
-    "glyph": "./src/cli.js"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -39,6 +39,11 @@
     "src/",
     "examples/",
     "README.md",
-    "SPECIFICATION.md"
+    "LICENSE",
+    "SPECIFICATION.md",
+    "GETTING_STARTED.md",
+    "CONTRIBUTING.md",
+    "ROADMAP.md",
+    "test-run.js"
   ]
 }
