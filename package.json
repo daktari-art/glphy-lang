@@ -1,6 +1,6 @@
 {
   "name": "@glyph-lang/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Glyph Language - Visual Data Flow Programming with Graph Execution",
   "main": "src/cli.js",
   "type": "module",
@@ -20,7 +20,8 @@
     "programming-language",
     "glyph",
     "graph-execution",
-    "functional-programming"
+    "functional-programming",
+    "types"
   ],
   "author": "Daktari Art",
   "license": "MIT",
@@ -38,13 +39,6 @@
     "src/",
     "examples/",
     "README.md",
-    "LICENSE",
-    "SPECIFICATION.md",
-    "GETTING_STARTED.md",
-    "ROADMAP.md",
-    "CONTRIBUTING.md"
-  ],
-  "devDependencies": {
-    "@types/node": "^20.0.0"
-  }
+    "SPECIFICATION.md"
+  ]
 }
