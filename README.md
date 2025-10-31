@@ -4,17 +4,18 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
-[![Version](https://img.shields.io/badge/version-0.3.0-green)](https://github.com/daktari-art/glyph-lang)
+[![Version](https://img.shields.io/badge/version-0.3.0-brightgreen)](https://github.com/daktari-art/glyph-lang)
 
 Glyph is a revolutionary visual data flow programming language that makes complex data transformations intuitive through graph-based execution.
 
 ## 🚀 What's New in v0.3.0
 
-- **🛡️ Type Inference Engine** - Static analysis to detect type mismatches before runtime.
-- **🔗 Scoped Functions & Call Stack** - Full support for recursion and modular program design (e.g., `fibonacci.glyph` now works).
-- **💥 Error Flow (⚡) Routing** - Graceful error handling via the error flow connector.
-- **✅ N-ary Arithmetic Fix** - `subtract` and `divide` now correctly handle multiple inputs as chained operations.
-- **🎯 Graph-Based Parser** - No more linear flow limitations! (from v0.2.0)
+The focus of v0.3.0 is **Execution Integrity** and **Type Readiness**.
+
+- **✅ N-ary Arithmetic Fix:** Critical bug fix! Operations like `subtract` and `divide` now correctly handle multiple inputs as chained operations (e.g., `100 - 10 - 5 = 85`).
+- **🛡️ Type Annotations:** You can now add optional type annotations (e.g., `[○ 42: number]`) for better clarity and future **Type Inference** support.
+- **🔄 Scoped Function Foundation:** Core engine stubs are in place to support **recursion** and user-defined function blocks (e.g., `fibonacci.glyph` example).
+- **⚡ Error Flow (Stub):** Parser support for the `⚡` connector to route errors visually.
 
 ## ⚡ Quick Start
 
@@ -22,7 +23,7 @@ Glyph is a revolutionary visual data flow programming language that makes comple
 # Install globally
 npm install -g @glyph-lang/core
 
-# Create your first program
+# Create your first program with a type annotation
 echo '[○ 5: number] → [▷ multiply] ← [○ 6: number] → [▷ print]' > multiply.glyph
 
 # Run it!
@@ -30,25 +31,24 @@ glyph run multiply.glyph
 # Output: 📤 PRINT: 30
 
 📖 Examples
-🔢 Arithmetic Operations
-# Chained multiplication (N-ary fix in v0.3.0)
-[○ 3] → [▷ multiply] ← [○ 4] ← [○ 2] → [▷ print]  # Output: 24
+🔢 N-ary Arithmetic Operations (v0.3.0 Critical Test)
+# Correctly calculates 100 - 10 - 5 = 85
+[○ 100: number] → [▷ subtract] ← [○ 10: number] ← [○ 5: number] → [▷ print]
 
-# N-ary Subtraction (Chained Operation)
-[○ 100] → [▷ subtract] ← [○ 10] ← [○ 5] → [▷ print]  # Output: 85 (100 - 10 - 5)
+🔁 Recursive Function Call (Scoped Logic Stub)
+# Main entry point to call the 'fibonacci' function
+[○ 10: number] → [▷ fibonacci] → [⤶ print]
 
-✍️ Text Processing
-[□ " hello world "] → [▷ trim] → [▷ to_upper] → [▷ print]  # Output: HELLO WORLD
-
-🚀 Scoped Function (Recursion)
-# Calling a user-defined function block
-[○ 10] → [▷ fibonacci] → [⤶ print]
+💡 Error Flow Routing (Future v0.4.0)
+# If read_file fails, the flow is redirected to handle the error
+[□ "file.txt"] → [▷ read_file] ─true─→ [○ result]
+                                └⚡─→ [⚡ error_handler]
 
 🏗️ Architecture
-Glyph Source → Type Inference → Graph Parser → AST → Execution Engine → Results
-     │               │              │           │          │
-    .glyph      Static Typing   Multi-input  Dependency  Parallel
-    files      & Validation  connections   graph      execution
+Glyph Source → Graph Parser → AST (with Types) → Execution Engine → Results
+     │              │               │                 │
+    .glyph     Stable Node ID   Type Annotation    N-ary Fixed
+    files     Function Labels  Dependency Graph  Scoped Execution
 
 📚 Documentation
  * Language Specification - Complete language reference
@@ -64,18 +64,16 @@ glyph> [○ 7] → [▷ multiply] ← [○ 8] → [▷ print]
 => 56
 
 Run Examples
-# See all examples in action
+# See all examples in action, testing the N-ary fixes
 glyph run examples/arithmetic.glyph
 glyph run examples/fibonacci.glyph
-glyph run examples/hello-world.glyph
 
 🤝 Contributing
 We welcome contributions! Please see our Contributing Guide for details.
 Development Setup
 git clone [https://github.com/daktari-art/glyph-lang.git](https://github.com/daktari-art/glyph-lang.git)
 cd glyph-lang
-npm install
-npm test  # Run test suite
+npm test  # Run v0.3.0 test suite (verifying N-ary fixes)
 glyph repl  # Start development REPL
 
 📄 License
