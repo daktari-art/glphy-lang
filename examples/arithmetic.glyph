@@ -1,8 +1,29 @@
-# Arithmetic Operations - Testing Multi-Input Fix
-[○ 12] → [▷ multiply] ← [○ 12] → [▷ print]
-[○ 2] → [▷ exponent] ← [○ 8] → [▷ print]
-[○ 10] → [▷ add] ← [○ 20] → [▷ print]
-[○ 100] → [▷ subtract] ← [○ 25] → [▷ print]
+# examples/arithmetic.glyph - Glyph Language v0.3.0
 
-# Complex expression
-[○ 5] → [▷ multiply] ← [○ 6] → [▷ add] ← [○ 10] → [▷ print]
+# This file demonstrates basic arithmetic and the N-ary fixes for subtract/divide.
+
+# 1. Standard Multiplication (N-ary)
+[○ 12: number] → [▷ multiply] ← [○ 12: number] → [▷ print]
+# Output: 144
+
+# 2. Triple Multiplication
+[○ 2: number] → [▷ multiply] ← [○ 3: number] ← [○ 4: number] → [▷ print]
+# Output: 24
+
+# 3. Addition (N-ary)
+[○ 10: number] → [▷ add] ← [○ 20: number] ← [○ 5: number] → [▷ print]
+# Output: 35
+
+# 4. N-ary Subtraction (v0.3.0 Fix: 100 - 10 - 5 = 85)
+[○ 100: number] → [▷ subtract] ← [○ 10: number] ← [○ 5: number] → [▷ print]
+# Output: 85
+
+# 5. N-ary Division (v0.3.0 Fix: 100 / 2 / 5 = 10)
+[○ 100: number] → [▷ divide] ← [○ 2: number] ← [○ 5: number] → [▷ print]
+# Output: 10
+
+# 6. Chained Operations (BODMAS ignored - executes in graph order: 5 * 6 = 30, then 30 + 10 = 40)
+[○ 5: number] → [▷ multiply] ← [○ 6: number] 
+[▷ multiply] → [▷ add] ← [○ 10: number]
+[▷ add] → [▷ print]
+# Output: 40
