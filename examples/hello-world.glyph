@@ -1,3 +1,14 @@
-# Hello World in Glyph
-[□ "Hello, World!"] → [▷ print]
+# examples/hello-world.glyph - Glyph Language v0.3.0
+
+# 1. Basic Text Output
+[□ "Hello, Glyph World!"] → [▷ print]
+
+# 2. Text Transformation Pipeline
 [□ "Welcome to Glyph Language!"] → [▷ to_upper] → [▷ print]
+
+# 3. Simple Concatenation
+[□ "The answer is: "] → [▷ concat] ← [○ 42: number] → [▷ print]
+# Output: The answer is: 42
+
+# 4. Using a Boolean Node (for future conditional flow)
+[◇ true: boolean] → [▷ print]
