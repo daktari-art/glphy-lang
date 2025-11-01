@@ -1,1 +1,30 @@
 
+{
+  "name": "glyph-language-support",
+  "displayName": "Glyph Language Support",
+  "description": "Syntax highlighting and snippets for Glyph Language.",
+  "version": "0.3.0",
+  "publisher": "YourPublisherName",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "glyph",
+        "aliases": ["Glyph", "glyph"],
+        "extensions": [".glyph"]
+      }
+    ],
+    "snippets": [
+      {
+        "language": "glyph",
+        "path": "./snippets/glyph.json"
+      }
+    ]
+  }
+}
