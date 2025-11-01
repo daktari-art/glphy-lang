@@ -1,4 +1,4 @@
-// src/compiler/graph-parser.js - v0.3.0 - TYPE ANNOTATIONS & STABLE ID
+// src/compiler/graph-parser.js - v0.3.1 - FIX: FULL GRAPH TOKENIZATION
 // NOTE: For a real project, replace 'generateUUID()' with a library call (e.g., 'crypto.randomUUID()')
 const generateUUID = () => `node_${Math.random().toString(36).substring(2, 9)}`; 
 
@@ -17,8 +17,25 @@ export class GraphParser {
             '⤴': 'RETURN_FLOW', 
             '⤵': 'INPUT_FLOW'
         };
+        // CRITICAL FIX: Regex to capture any node [...] OR any connector, including those with labels (e.g., ─true─→)
+        this.tokenRegex = /(\[.*?\])|([→←⚡🔄⤴⤵]|─[^─]+─[→←⚡🔄⤴⤵])/g;
     }
 
+    // Helper to extract the symbol, value, and type from a node string (e.g., [○ 10: number])
+    parseNodeValue(token) {
+        const content = token.substring(1, token.length - 1).trim();
+        const parts = content.split(':').map(p => p.trim());
+        const rawValue = parts[0] || '';
+        const type = parts[1] || 'any';
+
+        const symbol = rawValue.substring(0, 1);
+        const value = rawValue.substring(1).trim();
+        const nodeType = this.symbols[symbol];
+
+        return { symbol, nodeType, value, type, token };
+    }
+
+    // The core parsing method - FIXED
     parse(source) {
         const ast = { 
             type: 'Program', 
@@ -30,137 +47,130 @@ export class GraphParser {
 
         const lines = source.split('\n');
         let currentLabel = 'main';
+        let nodeIdCounter = 0;
         
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
-            if (!line || line.startsWith('#')) continue;
 
-            // 1. Check for label (e.g., 'my_function:')
-            const labelMatch = line.match(/^(\w+):$/);
-            if (labelMatch) {
-                currentLabel = labelMatch[1];
-                ast.labels[currentLabel] = { 
-                    type: 'Label', 
-                    name: currentLabel, 
-                    lineNumber: i + 1,
-                    // In a full implementation, this object would contain references to the nodes in the block
-                };
+            if (line.startsWith('#') || line === '') continue; // Skip comments and empty lines
+
+            // 1. Label Check
+            if (line.endsWith(':')) {
+                currentLabel = line.substring(0, line.length - 1).trim();
+                ast.labels[currentLabel] = { line: i, nodes: [] };
                 continue;
             }
 
-            // 2. Node Parsing Logic (UPDATED for Type Annotations)
-            // Regex captures: [1] symbol, [2] value, [3] optional type annotation
-            const nodeMatch = line.match(/\[(.)\s+([^\]:]+)(?::\s*(\w+))?\]/); 
-            if (nodeMatch) {
-                const symbol = nodeMatch[1];
-                const value = nodeMatch[2].trim();
-                const annotation = nodeMatch[3] ? nodeMatch[3].trim() : null; // Capture optional type annotation
-
-                const node = {
-                    id: generateUUID(), // Replaced sequential counter with stable ID
-                    type: this.symbols[symbol],
-                    value: this.cleanValue(value),
-                    lineNumber: i + 1,
-                    position: line.indexOf(nodeMatch[0]),
-                    label: currentLabel,
-                    dataType: annotation // NEW: Store the type annotation
-                };
-
-                ast.nodes.push(node);
-                continue;
+            // 2. Tokenize the line - CRITICAL STEP
+            const tokens = [];
+            let match;
+            this.tokenRegex.lastIndex = 0; // Reset regex state
+            while ((match = this.tokenRegex.exec(line)) !== null) {
+                if (match[0].trim() !== '') {
+                    tokens.push({
+                        value: match[0],
+                        position: match.index
+                    });
+                }
             }
+
+            if (tokens.length === 0) continue;
+
+            // 3. Process Tokens to Nodes and Connections
+            let lastNode = null;
             
-            // 3. Connection Parsing (Remains the same as fixed v0.2.0)
-            this.parseConnections(line, ast, i + 1);
+            for (let j = 0; j < tokens.length; j++) {
+                const token = tokens[j];
+                const isNode = token.value.startsWith('[');
+                
+                if (isNode) {
+                    // Create Node
+                    const { symbol, nodeType, value, type } = this.parseNodeValue(token.value);
+                    const newNode = {
+                        id: generateUUID(),
+                        nodeId: nodeIdCounter++,
+                        type: nodeType,
+                        value: value,
+                        symbol: symbol,
+                        dataType: type,
+                        label: currentLabel,
+                        position: token.position,
+                        line: i + 1,
+                        inputs: [],
+                        executed: false,
+                        sourceCode: token.value
+                    };
+                    ast.nodes.push(newNode);
+                    ast.labels[currentLabel].nodes.push(newNode.id);
+                    
+                    // Connection logic is deferred to the connector token to handle direction.
+                    lastNode = newNode; // New node becomes the potential source/destination for next connection
+                    
+                } else { // It is a connector (→, ←, ⚡, etc.)
+                    
+                    if (!lastNode) {
+                        throw new Error(`Syntax Error on line ${i + 1}: Connector '${token.value}' found before any source node.`);
+                    }
+
+                    // Find the node *before* the current connector token
+                    const sourceNode = this.findClosestNodeByPosition(ast.nodes, token.position);
+                    
+                    // Look for the next node (destination/input)
+                    const nextToken = tokens[j + 1];
+                    if (!nextToken || !nextToken.value.startsWith('[')) {
+                        throw new Error(`Syntax Error on line ${i + 1}: Connector '${token.value}' is not followed by a node.`);
+                    }
+
+                    // The next node must be found in the AST since it must have been parsed.
+                    const destinationNode = this.findClosestNodeByPosition(ast.nodes, nextToken.position);
+                    
+                    // Extract flow symbol and label (e.g., ─true─→)
+                    const connectorMatch = token.value.match(/([→←⚡🔄⤴⤵])|─([^─]+)─([→←⚡🔄⤴⤵])/);
+                    const flowSymbol = connectorMatch[1] || connectorMatch[3];
+                    const flowLabel = connectorMatch[2] || null;
+                    const connectionType = this.connectionTypes[flowSymbol];
+                    
+                    let fromNodeId, toNodeId;
+
+                    if (flowSymbol === '→' || flowSymbol === '⚡' || flowSymbol === '🔄' || flowSymbol === '⤴' || flowSymbol === '⤵') {
+                        // Forward flow: Source is before connector, destination is after.
+                        fromNodeId = sourceNode.id;
+                        toNodeId = destinationNode.id;
+                    } else if (flowSymbol === '←') {
+                        // Reverse flow (Input to a Function): Source is after connector, destination is before.
+                        fromNodeId = destinationNode.id;
+                        toNodeId = sourceNode.id;
+                    }
+
+                    if (fromNodeId && toNodeId) {
+                         ast.connections.push({
+                            id: generateUUID(),
+                            from: fromNodeId,
+                            to: toNodeId,
+                            type: connectionType,
+                            label: flowLabel
+                        });
+                        
+                        // Increment j to skip the next token (the destination node), which we just processed
+                        j++;
+                    }
+                }
+            }
         }
-        
-        // 4. Final validation and optimization
+
         this.validateGraph(ast);
         return ast;
     }
     
-    cleanValue(value) {
-        // Remove surrounding quotes from strings if present
-        if (value.startsWith('"') && value.endsWith('"')) {
-            return value.slice(1, -1);
-        }
-        return value;
-    }
-
-    parseConnections(line, ast, lineNumber) {
-        const connectionRegex = new RegExp(`(${Object.keys(this.connectionTypes).map(t => '\\' + t).join('|')})`, 'g');
-        const connectionMatches = Array.from(line.matchAll(connectionRegex));
-        
-        if (connectionMatches.length === 0) return;
-
-        // Get all nodes on this line, sorted by position
-        const nodesOnLine = ast.nodes
-            .filter(n => n.lineNumber === lineNumber)
-            .sort((a, b) => a.position - b.position);
-
-        if (nodesOnLine.length === 0) return;
-
-        connectionMatches.forEach(match => {
-            const connector = match[0];
-            const connType = this.connectionTypes[connector];
-            const connPosition = match.index;
-
-            // Find the closest node to the left (source) and right (destination) of the connector
-            let sourceNode = null;
-            let destNode = null;
-
-            if (connector === '→' || connector === '⤴') { // Flow is L->R
-                sourceNode = this.findClosestNodeLeft(nodesOnLine, connPosition);
-                destNode = this.findClosestNodeRight(nodesOnLine, connPosition + connector.length);
-            } else if (connector === '←') { // Flow is R->L (Reverse Data Flow)
-                // Reverse flow means the node on the RIGHT is the source
-                sourceNode = this.findClosestNodeRight(nodesOnLine, connPosition + connector.length);
-                destNode = this.findClosestNodeLeft(nodesOnLine, connPosition);
-            } else { // Handle ERROR_FLOW (⚡) etc. - Default to L->R flow direction
-                sourceNode = this.findClosestNodeLeft(nodesOnLine, connPosition);
-                destNode = this.findClosestNodeRight(nodesOnLine, connPosition + connector.length);
-            }
-
-            if (sourceNode && destNode) {
-                ast.connections.push({
-                    from: sourceNode.id,
-                    to: destNode.id,
-                    type: connType,
-                    connector: connector,
-                    lineNumber: lineNumber
-                });
-            } else {
-                 console.warn(`⚠️ Warning: Unconnected flow element "${connector}" on line ${lineNumber}`);
-            }
-        });
-    }
-
-    // Utility functions to find the closest node left/right (used in parseConnections)
-
-    findClosestNodeLeft(nodes, position) {
-        let closest = null;
-        let maxDistance = -Infinity;
-        
-        for (const node of nodes) {
-            if (node.position < position) {
-                // Ensure the node is actually to the left of the connector
-                const distance = position - (node.position + node.value.length + 5); // 5 is estimate for brackets/spaces
-                if (distance > maxDistance) {
-                    maxDistance = distance;
-                    closest = node;
-                }
-            }
-        }
-        return closest;
-    }
-
-    findClosestNodeRight(nodes, position) {
+    // Utility function bodies taken from snippets
+    findClosestNodeByPosition(nodes, position) {
         let closest = null;
         let minDistance = Infinity;
-        
+
         for (const node of nodes) {
-            if (node.position >= position) {
-                const distance = node.position - position;
+            // Only consider nodes before or at the position
+            if (node.position <= position) { 
+                const distance = position - node.position;
                 if (distance < minDistance) {
                     minDistance = distance;
                     closest = node;
@@ -173,13 +183,7 @@ export class GraphParser {
     removeDuplicateConnections(connections) {
         const connectionSet = new Set();
         return connections.filter(conn => {
-            const key = `${conn.from}->${conn.to}:${conn.type}`;
-            if (!connectionSet.has(key)) {
-                connectionSet.add(key);
-                return true;
-            }
-            return false;
-        });
+            const key = `${conn.from}->${conn.to}:${conn.type}`;\n            if (!connectionSet.has(key)) {\n                connectionSet.add(key);\n                return true;\n            }\n            return false;\n        });
     }
     
     validateGraph(ast) {
