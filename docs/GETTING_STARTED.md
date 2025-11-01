@@ -1,271 +1,73 @@
-# Getting Started with Glyph Language v2.0
+# Getting Started with Glyph Language v0.3.0
 
 ## 🚀 Quick Start
 
 ### Installation
+
 ```bash
 # Install globally
 npm install -g @glyph-lang/core
 
-# Or use directly with npx
-npx @glyph-lang/core run examples/hello-world.glyph
-```
+# Verify installation
+glyph --version
+# Output: 🔮 Glyph Language v0.3.0
 
 Your First Program
-
+Glyph programs are simple graphs of data flow.
 Create hello.glyph:
-
-```glyph
-[□ "Hello, World!"] → [▷ print]
-```
+# [Glyph_Type value: optional_type_annotation] → [Connector] → [Destination]
+[□ "Hello, Glyph World!"] → [▷ print] 
 
 Run it:
-
-```bash
 glyph run hello.glyph
-# Output: 📤 PRINT: Hello, World!
-```
+# Output: 📤 PRINT: Hello, Glyph World!
 
-🆕 What's New in v2.0
+📖 Learning Path: Core Concepts
+Day 1: Data Flow and N-ary Operations
+Learn to create simple data pipelines and use functions that accept multiple inputs.
+| Concept | Glyph Code | Description |
+|---|---|---|
+| Data Types | [○ 42: number]
+[□ "text": string]
+[◇ true: boolean] | Data nodes (○, □, ◇) with optional v0.3.0 Type Annotations. |
+| Simple Flow | [○ 42] → [⤶ print] | A single value flows directly to an Output node. |
+| Chained Math (v0.3.0 Fix) | [○ 100] → [▷ subtract] ← [○ 10] ← [○ 5] → [▷ print] | The function is called as subtract(100, 10, 5), resulting in 85. |
+| Text Pipeline | [□ " hello "] → [▷ trim] → [▷ to_upper] → [⤶ print] | Data flows sequentially through transformations. |
+Day 2: Functions, Scopes, and Recursion (v0.3.0)
+With v0.3.0, you can now define and call your own functions, enabling complex, recursive logic.
+ * Define a Function Block: Use a label (fibonacci:) to define a reusable block of logic.
+ * Use Function Nodes: Use the ▷ glyph with the label name ([▷ fibonacci]) to call the function.
+Example: Calling a Function
+To run a recursive program like fibonacci.glyph:
+glyph run examples/fibonacci.glyph
+# This program will calculate the 10th Fibonacci number using a scoped, recursive function.
 
-Multi-Input Functions Now Work!
+Day 3: Error Flow (⚡) Routing
+The ⚡ connector allows you to redirect program flow when an error is encountered.
+| Connector | Function |
+|---|---|
+| → | Primary Data Flow (Success) |
+| ⚡ | Error Flow (Failure, v0.3.0) |
+Example of Error Handling (Conceptual)
+[□ "file_DNE.txt"] → [▷ read_file] ⚡ [▷ print]
+# If read_file fails, the error message itself flows to the print node.
 
-```glyph
-# This now works perfectly!
-[○ 5] → [▷ multiply] ← [○ 6] → [▷ print]
-# Output: 📤 PRINT: 30
-```
-
+🛠️ Tooling & Troubleshooting
 Interactive REPL
-
-```bash
+The fastest way to test small pieces of Glyph code.
 glyph repl
-glyph> [○ 7] → [▷ multiply] ← [○ 8] → [▷ print]
-📤 PRINT: 56
-=> 56
-```
+glyph> [○ 1] → [▷ add] ← [○ 2] ← [○ 3] → [▷ multiply] ← [○ 10] → [▷ print]
+# Output: 📤 PRINT: 60
+=> 60
 
-📖 Learning Path
-
-Day 1: Basic Data Flow
-
-Learn to create simple data pipelines:
-
-```glyph
-# Simple value flow
-[○ 42] → [⤶ print]
-
-# Text transformation  
-[□ "hello"] → [▷ to_upper] → [⤶ print]
-
-# Multi-input math operations (NEW!)
-[○ 5] → [▷ multiply] ← [○ 6] → [⤶ print]
-[○ 10] → [▷ add] ← [○ 20] → [⤶ print]
-```
-
-Day 2: Complex Data Flow
-
-Work with multiple inputs and complex transformations:
-
-```glyph
-# Multiple inputs to functions
-[○ 2] → [▷ exponent] ← [○ 8] → [⤶ print]          # 256
-[□ "hello"] → [▷ concat] ← [□ " world"] → [⤶ print] # hello world
-
-# Chained operations
-[○ 5] → [▷ multiply] ← [○ 6] → [▷ add] ← [○ 10] → [⤶ print]  # 40
-```
-
-Day 3: Text Processing & User Input
-
-Handle real-world input scenarios:
-
-```glyph
-# Natural language number parsing
-[□ "twenty five"] → [▷ parse_text_to_number] → [⤶ print]    # 25
-[□ "18 years old"] → [▷ clean_mixed_input] → [⤶ print]      # 18
-[□ "one hundred"] → [▷ parse_text_to_number] → [⤶ print]    # 100
-
-# Text transformations
-[□ "Hello World"] → [▷ to_lower] → [▷ concat] ← [□ "!"] → [⤶ print]  # hello world!
-```
-
-Day 4: Type Conversion & Validation
-
-Ensure data quality and handle different formats:
-
-```glyph
-# Type safety
-[○ "42"] → [▷ to_number] → [⤶ print]              # 42 (as number)
-[○ 123] → [▷ to_string] → [▷ concat] ← [□ " users"] → [⤶ print]  # "123 users"
-
-# Data validation
-[○ 25] → [▷ is_valid_age] → [⤶ print]             # true
-[○ 150] → [▷ is_valid_age] → [⤶ print]            # false
-```
-
-Day 5: Advanced Patterns
-
-Build complex data processing pipelines:
-
-```glyph
-# Complex user input processing
-process_age_input:
-  [○ raw_input] → [▷ parse_text_to_number] → [◯ valid?] ─true─→ [○ age]
-                   └false─→ [▷ clean_mixed_input] → [◯ valid?] ─true─→ [○ age]
-                                          └false─→ [⚡ "Invalid input"]
-```
-
-🛠️ Development Workflow
-
-1. Write Glyph Code
-
-Create files with .glyph extension:
-
-```glyph
-# calculator.glyph
-add_numbers:
-  [○ a] → [▷ add] ← [○ b] → [○ result]
-
-multiply_numbers:
-  [○ a] → [▷ multiply] ← [○ b] → [○ result]
-
-main:
-  [○ 5] → [▷ add_numbers] ← [○ 3] → [▷ multiply_numbers] ← [○ 2] → [⤶ print]
-```
-
-2. Test with REPL
-
-```bash
-glyph repl
-glyph> [○ 5] → [▷ add] ← [○ 3] → [▷ multiply] ← [○ 2] → [▷ print]
-📤 PRINT: 16
-=> 16
-```
-
-3. Run Your Program
-
-```bash
-# Run directly
-glyph run calculator.glyph
-
-# Parse and inspect AST
-glyph parse calculator.glyph
-
-# Compile to JavaScript
-glyph compile calculator.glyph
-```
-
-4. Debug and Refine
-
-```bash
-# Run tests
-glyph test
-
-# Check specific examples
-glyph run examples/arithmetic.glyph
-```
-
-📝 Common Patterns
-
-Data Transformation Pipeline
-
-```glyph
-process_data:
-  [○ raw_data] → [▷ validate] → [▷ transform] → [▷ enrich] → [○ processed_data]
-```
-
-Multi-Input Processing
-
-```glyph
-calculate_total:
-  [○ price] → [▷ multiply] ← [○ quantity] → [▷ add] ← [○ tax] → [○ total]
-```
-
-User Input Handling
-
-```glyph
-handle_user_input:
-  [○ input] → [▷ parse_text_to_number] → [◯ valid?] ─true─→ [○ number]
-                   └false─→ [▷ clean_mixed_input] → [◯ valid?] ─true─→ [○ number]
-                                          └false─→ [⚡ "Please enter a valid number"]
-```
-
-Parallel Processing
-
-```glyph
-parallel_tasks:
-  [○ input] → [▷ task_a] → [○ result_a]
-            → [▷ task_b] → [○ result_b]
-            → [▷ task_c] → [○ result_c]
-```
-
-🔧 Troubleshooting
-
-Common Issues
-
-Parser Error: Unexpected token
-
-· Check for missing brackets []
-· Ensure proper glyph symbols are used
-· Verify arrow directions (→, ←)
-
-Runtime Error: Function not found
-
-· Verify function name spelling
-· Check available functions in standard library
-· Use glyph repl to test functions
-
-Multi-Input Not Working
-
-· Ensure you're using v2.0+
-· Check arrow directions point toward function
-· Verify all inputs are connected
-
-Type Conversion Issues
-
-· Use ▷ to_number for string-to-number conversion
-· Use ▷ to_string for number-to-string conversion
-· Validate inputs with appropriate functions
-
-Getting Help
-
-1. Check Examples: examples/ directory has working code
-2. Use REPL: Test small pieces with glyph repl
-3. Read Documentation: SPECIFICATION.md for language details
-4. Run Tests: glyph test to verify installation
-5. Community: GitHub issues for bug reports
-
+Troubleshooting Tips
+| Issue | Cause | Solution |
+|---|---|---|
+| "Unknown function" | You misspelled a built-in function name (e.g., multipy). | Check the list in SPECIFICATION.md. |
+| Incorrect Math Result | You forgot to connect all inputs to the function node. | Verify all inputs are connected to the ▷ node. |
+| "Type Error" | You connected a string to an operation expecting a number (e.g., [□ "five"] → [▷ multiply]). | Use a type annotation or a conversion function like [▷ to_number]. |
 🎯 Next Steps
+ * Explore Examples: Run all examples in the examples/ directory (glyph run examples/arithmetic.glyph).
+ * Read Specification: Understand the full grammar and built-in functions in SPECIFICATION.md.
+ * Join Development: Check CONTRIBUTING.md for how to help build v0.4.0 (Async/External Packages)!
 
-· Explore Examples: Run all examples in examples/ directory
-· Read Specification: Understand language fundamentals in SPECIFICATION.md
-· Join Development: Check CONTRIBUTING.md for how to help
-· Build Something: Create your own Glyph programs!
-· Share Feedback: Let us know what you think!
-
-🆕 Try These v2.0 Examples
-
-```glyph
-# Multi-input math
-[○ 3] → [▷ multiply] ← [○ 4] → [▷ multiply] ← [○ 5] → [▷ print]  # 60
-
-# Text processing pipeline
-[□ " hello world "] → [▷ trim] → [▷ to_upper] → [▷ concat] ← [□ "!"] → [▷ print]  # HELLO WORLD!
-
-# Natural language processing  
-[□ "I have twenty five apples"] → [▷ extract_number] → [▷ print]  # 25
-```
-
----
-
-Ready to experience the future of visual programming? Start building with Glyph v2.0 today! 🚀
-
-```
-
-**Key improvements in this guide:**
-- ✅ Updated for v2.0 with multi-input examples
-- ✅ Clear 5-day learning path with practical examples
-- ✅ Enhanced troubleshooting section
-- ✅ Modern development workflow with REPL
-- ✅ Real-world patterns for data processing

@@ -1,4 +1,4 @@
-// src/runtime/engine.js - COMPLETELY FIXED VERSION
+// src/runtime/engine.js - v0.3.0 - N-ARY FIXES & SCOPE SUPPORT
 export class GlyphEngine {
     constructor() {
         this.nodes = new Map();
@@ -7,371 +7,236 @@ export class GlyphEngine {
         this.variables = new Map();
         this.executionHistory = [];
         this.builtinFunctions = this.initializeBuiltins();
+        this.callStack = []; // NEW: Manages function execution context
+        this.scopes = new Map(); // NEW: Maps node IDs to their local scope
     }
 
     initializeBuiltins() {
         return {
-            // Math operations - MULTI-INPUT FIXED
+            // Math operations - N-ARY FIXED in v0.3.0
             'multiply': (inputs) => {
-                console.log(`🔢 MULTIPLY called with:`, inputs);
-                if (inputs.length < 2) {
-                    throw new Error(`Multiply needs at least 2 inputs, got ${inputs.length}`);
-                }
-                const result = inputs.reduce((a, b) => a * b, 1);
-                console.log(`🔢 MULTIPLY result: ${inputs.join(' × ')} = ${result}`);
-                return result;
+                // Ensure inputs are numbers before reducing, as per Type Inference goal
+                const numericInputs = inputs.map(Number);
+                if (numericInputs.length < 2) throw new Error('Multiply needs at least 2 inputs');
+                return numericInputs.reduce((a, b) => a * b, 1);
             },
             'add': (inputs) => {
-                console.log(`➕ ADD called with:`, inputs);
-                if (inputs.length < 2) throw new Error('Add needs at least 2 inputs');
-                const result = inputs.reduce((a, b) => a + b, 0);
-                console.log(`➕ ADD result: ${inputs.join(' + ')} = ${result}`);
-                return result;
+                const numericInputs = inputs.map(Number);
+                if (numericInputs.length < 2) throw new Error('Add needs at least 2 inputs');
+                return numericInputs.reduce((a, b) => a + b, 0);
             },
             'subtract': (inputs) => {
-                if (inputs.length < 2) throw new Error('Subtract needs 2 inputs');
-                return inputs[0] - inputs[1];
+                const numericInputs = inputs.map(Number);
+                if (numericInputs.length < 2) throw new Error('Subtract needs at least 2 inputs');
+                // N-ary fix: Start with first input, subtract all subsequent inputs (a - b - c - ...)
+                return numericInputs.slice(1).reduce((a, b) => a - b, numericInputs[0]);
             },
             'divide': (inputs) => {
-                if (inputs.length < 2) throw new Error('Divide needs 2 inputs');
-                if (inputs[1] === 0) throw new Error('Division by zero');
-                return inputs[0] / inputs[1];
-            },
-            'exponent': (inputs) => {
-                if (inputs.length < 2) throw new Error('Exponent needs base and exponent');
-                return Math.pow(inputs[0], inputs[1]);
-            },
-
-            // Text operations - MULTI-INPUT FIXED
-            'to_upper': (inputs) => {
-                if (inputs.length < 1) throw new Error('to_upper needs 1 input');
-                return String(inputs[0]).toUpperCase();
-            },
-            'to_lower': (inputs) => {
-                if (inputs.length < 1) throw new Error('to_lower needs 1 input');
-                return String(inputs[0]).toLowerCase();
+                const numericInputs = inputs.map(Number);
+                if (numericInputs.length < 2) throw new Error('Divide needs at least 2 inputs');
+                // N-ary fix: Start with first input, divide by all subsequent inputs (a / b / c / ...)
+                return numericInputs.slice(1).reduce((a, b) => {
+                    if (b === 0) throw new Error('Division by zero detected');
+                    return a / b;
+                }, numericInputs[0]);
             },
             'concat': (inputs) => {
-                console.log(`🔗 CONCAT called with:`, inputs);
-                if (inputs.length < 2) throw new Error('concat needs at least 2 inputs');
-                const result = inputs.map(String).join('');
-                console.log(`🔗 CONCAT result: "${inputs.join('" + "')}" = "${result}"`);
-                return result;
+                // Concatenates all inputs as strings
+                return inputs.map(String).join('');
             },
-            'length': (inputs) => {
-                if (inputs.length < 1) throw new Error('length needs 1 input');
-                return String(inputs[0]).length;
-            },
-
-            // Output operations
             'print': (inputs) => {
-                if (inputs.length < 1) throw new Error('print needs 1 input');
-                const output = `📤 PRINT: ${inputs[0]}`;
+                const output = `📤 PRINT: ${inputs.join(', ')}`;
                 this.output.push(output);
                 console.log(output);
-                return inputs[0];
+                return inputs[0]; // Return the primary input for chaining
             },
-
-            // Text-to-number conversion functions
-            'parse_text_to_number': (inputs) => {
-                if (inputs.length < 1) throw new Error('parse_text_to_number needs 1 input');
-                const text = String(inputs[0]).toLowerCase();
-                
-                // Simple text-to-number conversion
-                const numberWords = {
-                    'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 
-                    'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9,
-                    'ten': 10, 'eleven': 11, 'twelve': 12, 'thirteen': 13, 
-                    'fourteen': 14, 'fifteen': 15, 'sixteen': 16, 'seventeen': 17,
-                    'eighteen': 18, 'nineteen': 19, 'twenty': 20, 'thirty': 30,
-                    'forty': 40, 'fifty': 50, 'sixty': 60, 'seventy': 70,
-                    'eighty': 80, 'ninety': 90, 'hundred': 100
-                };
-
-                let result = 0;
-                let current = 0;
-                
-                const words = text.split(' ');
-                for (const word of words) {
-                    if (numberWords[word] !== undefined) {
-                        const num = numberWords[word];
-                        if (num === 100) {
-                            current *= num;
-                        } else {
-                            current += num;
-                        }
-                    } else if (word === 'and') {
-                        // Ignore 'and'
-                        continue;
-                    } else {
-                        // Try to parse as direct number
-                        const directNum = Number(word);
-                        if (!isNaN(directNum)) {
-                            current = directNum;
-                        }
-                    }
-                }
-                
-                result = current;
-                console.log(`🔤 TEXT_TO_NUMBER: "${text}" → ${result}`);
-                return result;
-            },
-
-            'clean_mixed_input': (inputs) => {
-                if (inputs.length < 1) throw new Error('clean_mixed_input needs 1 input');
-                const text = String(inputs[0]);
-                
-                // Extract numbers from mixed text
-                const numbers = text.match(/\d+/g);
-                const result = numbers ? Number(numbers[0]) : 0;
-                
-                console.log(`🧹 CLEAN_INPUT: "${text}" → ${result}`);
-                return result;
-            },
-
-            'is_valid_age': (inputs) => {
-                if (inputs.length < 1) throw new Error('is_valid_age needs 1 input');
-                const age = Number(inputs[0]);
-                const isValid = !isNaN(age) && age >= 0 && age <= 120;
-                console.log(`✅ VALID_AGE: ${age} → ${isValid}`);
-                return isValid;
-            },
-
-            // Type conversion
-            'to_string': (inputs) => {
-                if (inputs.length < 1) throw new Error('to_string needs 1 input');
-                return String(inputs[0]);
-            },
-            'to_number': (inputs) => {
-                if (inputs.length < 1) throw new Error('to_number needs 1 input');
-                const num = Number(inputs[0]);
-                if (isNaN(num)) throw new Error(`Cannot convert "${inputs[0]}" to number`);
-                console.log(`🔢 TO_NUMBER: "${inputs[0]}" → ${num}`);
-                return num;
-            }
+            'to_upper': (inputs) => String(inputs[0]).toUpperCase(),
+            'to_lower': (inputs) => String(inputs[0]).toLowerCase(),
+            'trim': (inputs) => String(inputs[0]).trim(),
+            'length': (inputs) => String(inputs[0]).length,
+            // Type Conversion
+            'to_number': (inputs) => Number(inputs[0]),
+            'to_string': (inputs) => String(inputs[0]),
+            'to_boolean': (inputs) => Boolean(inputs[0]),
         };
     }
 
+    // --- Core Execution Logic ---
+
     loadProgram(ast) {
-        this.ast = ast;
-        this.nodes.clear();
-        this.connections = ast.connections || [];
+        this.nodes = new Map(ast.nodes.map(node => [node.id, { ...node, result: null, executed: false, error: null }]));
+        this.connections = ast.connections;
+        this.ast = ast; // Keep AST reference for scope lookup
         this.output = [];
-        this.variables.clear();
         this.executionHistory = [];
-
-        // Load all nodes
-        ast.nodes.forEach(node => {
-            this.nodes.set(node.id, { 
-                ...node, 
-                executed: false, 
-                result: null,
-                error: null,
-                inputs: this.findInputs(node.id),
-                outputs: this.findOutputs(node.id)
-            });
-        });
-
-        console.log(`🔮 Loaded program: ${this.nodes.size} nodes, ${this.connections.length} connections`);
-        
-        // DEBUG: Enhanced connection verification
-        console.log('🔗 CONNECTION VERIFICATION:');
-        this.nodes.forEach((node, id) => {
-            console.log(`   ${node.type}("${node.value}"): ${node.inputs.length} inputs, ${node.outputs.length} outputs`);
-            if (node.inputs.length > 0) {
-                console.log(`     Inputs: ${node.inputs.map(inputId => {
-                    const inputNode = this.nodes.get(inputId);
-                    return `${inputNode?.type}("${inputNode?.value}")`;
-                }).join(', ')}`);
-            }
-        });
-        
-        this.buildExecutionOrder();
+        this.callStack = [];
+        this.scopes = new Map();
+        this.dependencyMap = this.resolveDependencies();
     }
 
-    findInputs(nodeId) {
-        return this.connections
-            .filter(conn => conn.to === nodeId)
-            .map(conn => conn.from);
-    }
-
-    findOutputs(nodeId) {
-        return this.connections
-            .filter(conn => conn.from === nodeId)
-            .map(conn => conn.to);
-    }
-
-    buildExecutionOrder() {
-        // Kahn's algorithm for topological sort
-        const inDegree = new Map();
-        const graph = new Map();
-        
-        // Initialize
-        for (const nodeId of this.nodes.keys()) {
-            inDegree.set(nodeId, 0);
-            graph.set(nodeId, []);
+    resolveDependencies() {
+        // Maps node ID to a list of node IDs it depends on
+        const dependencyMap = new Map();
+        for (const node of this.nodes.values()) {
+            dependencyMap.set(node.id, []);
         }
-        
-        // Build graph and in-degree
+
         for (const conn of this.connections) {
-            graph.get(conn.from).push(conn.to);
-            inDegree.set(conn.to, inDegree.get(conn.to) + 1);
-        }
-        
-        // Find nodes with no incoming connections
-        const queue = [];
-        for (const [nodeId, degree] of inDegree) {
-            if (degree === 0) {
-                queue.push(nodeId);
+            // A node (conn.to) depends on the result of the source node (conn.from)
+            if (conn.type === 'DATA_FLOW' || conn.type === 'RETURN_FLOW') {
+                dependencyMap.get(conn.to).push(conn.from);
             }
         }
-        
-        const order = [];
-        while (queue.length > 0) {
-            const nodeId = queue.shift();
-            order.push(nodeId);
-            
-            for (const neighbor of graph.get(nodeId)) {
-                inDegree.set(neighbor, inDegree.get(neighbor) - 1);
-                if (inDegree.get(neighbor) === 0) {
-                    queue.push(neighbor);
-                }
+        return dependencyMap;
+    }
+
+    getReadyNodes() {
+        const readyNodes = [];
+        for (const node of this.nodes.values()) {
+            if (node.executed || node.error) continue;
+
+            const dependencies = this.dependencyMap.get(node.id);
+            const allDepsExecuted = dependencies.every(depId => this.nodes.get(depId).executed);
+
+            if (allDepsExecuted) {
+                readyNodes.push(node);
             }
         }
-        
-        // Check for cycles
-        if (order.length !== this.nodes.size) {
-            console.warn('⚠️  Possible cycle detected in graph');
-        }
-        
-        this.executionOrder = order;
-        console.log(`📋 Execution order:`, order.map(id => {
-            const node = this.nodes.get(id);
-            return `${node.type}("${node.value}")`;
-        }));
+        return readyNodes;
     }
 
     async execute() {
-        console.log('🚀 Starting Glyph program execution...');
-        console.log('='.repeat(50));
+        let executionQueue = this.getInitialNodes(); // Start with DATA_NODES and INPUT_FLOW targets
+        let safeCounter = 0;
+        const MAX_STEPS = this.nodes.size * 10; // Safety limit for complex graphs
 
-        const startTime = Date.now();
-        
-        try {
-            for (const nodeId of this.executionOrder) {
-                await this.executeNode(nodeId);
+        while (executionQueue.length > 0 && safeCounter < MAX_STEPS) {
+            const nextQueue = [];
+            
+            // Execute all nodes ready in the current step (potential parallelism)
+            for (const node of executionQueue) {
+                await this.executeNode(node);
+                
+                // Add successful node's immediate followers to the next queue
+                if (node.executed && !node.error) {
+                    const followers = this.connections
+                        .filter(conn => conn.from === node.id && (conn.type === 'DATA_FLOW' || conn.type === 'ERROR_FLOW'))
+                        .map(conn => this.nodes.get(conn.to));
+                    nextQueue.push(...followers);
+                }
             }
 
-            const executionTime = Date.now() - startTime;
-            
-            console.log('='.repeat(50));
-            console.log(`✅ Execution completed in ${executionTime}ms`);
-            
-            return this.getExecutionResult();
-            
-        } catch (error) {
-            console.log('='.repeat(50));
-            console.error(`💥 Execution failed: ${error.message}`);
-            
-            return {
-                success: false,
-                error: error.message,
-                output: this.output,
-                executionTime: Date.now() - startTime,
-                nodes: Array.from(this.nodes.values()).map(node => ({
-                    id: node.id,
-                    type: node.type,
-                    value: node.value,
-                    result: node.result,
-                    error: node.error,
-                    executed: node.executed
-                }))
-            };
+            // After parallel execution, update the queue with any newly ready nodes
+            const newReadyNodes = this.getReadyNodes();
+            const uniqueNextQueue = Array.from(new Set([...nextQueue, ...newReadyNodes]));
+            executionQueue = uniqueNextQueue.filter(n => !n.executed && !n.error);
+
+            safeCounter++;
         }
+
+        if (safeCounter >= MAX_STEPS) {
+            console.error('⚠️ Execution halted: Exceeded maximum safe execution steps. Possible infinite loop or highly complex graph.');
+        }
+
+        return this.getExecutionResult();
     }
 
-    async executeNode(nodeId) {
-        const node = this.nodes.get(nodeId);
-        if (!node || node.executed) {
-            return node?.result;
-        }
-
-        // Execute ALL input nodes first and collect ALL their results
-        const inputResults = [];
-        for (const inputId of node.inputs) {
-            const result = await this.executeNode(inputId);
-            inputResults.push(result);
-        }
-
-        console.log(`▶️ Executing ${node.type}: "${node.value}"`);
-        console.log(`   Inputs received: [${inputResults.join(', ')}]`);
+    getInitialNodes() {
+        // Find all nodes that are DATA_NODE or nodes that are targets of an INPUT_FLOW connection, 
+        // and have no DATA_FLOW dependencies.
+        const allDependencies = new Set(this.connections.filter(c => c.type === 'DATA_FLOW').map(c => c.to));
         
+        return Array.from(this.nodes.values()).filter(node => 
+            (node.type === 'DATA_NODE' || node.type === 'TEXT_NODE' || node.type === 'BOOL_NODE' || node.type === 'LIST_NODE') &&
+            !allDependencies.has(node.id)
+        );
+    }
+
+    async executeNode(node) {
+        if (node.executed) return;
+
+        this.executionHistory.push({ id: node.id, type: node.type, start: Date.now() });
+
         try {
-            let result;
-            
             switch (node.type) {
                 case 'DATA_NODE':
                 case 'TEXT_NODE':
-                case 'BOOL_NODE':
                 case 'LIST_NODE':
-                    result = node.value;
+                case 'BOOL_NODE':
+                    // Data nodes already hold their result (value)
+                    node.result = node.value; 
                     break;
-                    
-                case 'FUNCTION_NODE':
-                    result = await this.executeFunction(node, inputResults);
-                    break;
-                    
-                case 'OUTPUT_NODE':
-                    result = this.executeOutput(inputResults[0]);
-                    break;
-                    
-                default:
-                    result = node.value;
-            }
 
-            node.result = result;
+                case 'FUNCTION_NODE':
+                    const inputConnections = this.connections.filter(conn => conn.to === node.id && (conn.type === 'DATA_FLOW' || conn.type === 'RETURN_FLOW'));
+                    const inputs = inputConnections
+                        .map(conn => this.nodes.get(conn.from).result)
+                        .filter(result => result !== null); // Filter out nulls from nodes that haven't produced a result yet
+                    
+                    if (inputs.length !== inputConnections.length) {
+                         // Should not happen if getReadyNodes is correct, but safe check
+                         throw new Error(`Missing inputs for function ${node.value}`);
+                    }
+                    
+                    node.result = await this.executeFunction(node, inputs);
+                    break;
+                
+                case 'OUTPUT_NODE':
+                    const outputInputs = this.connections.filter(conn => conn.to === node.id && conn.type === 'DATA_FLOW');
+                    if (outputInputs.length > 0) {
+                        const inputResult = this.nodes.get(outputInputs[0].from).result;
+                        this.executeOutput(inputResult);
+                        node.result = inputResult;
+                    }
+                    break;
+
+                // TO BE IMPLEMENTED IN V0.4.0: CONDITION_NODE, LOOP_NODE, ASYNC_NODE, ERROR_NODE
+                case 'CONDITION_NODE':
+                case 'LOOP_NODE':
+                case 'ASYNC_NODE':
+                case 'ERROR_NODE':
+                    throw new Error(`Execution of node type ${node.type} is not yet implemented (v0.4.0 target).`);
+
+                default:
+                    throw new Error(`Unknown node type: ${node.type}`);
+            }
             node.executed = true;
-            
-            this.executionHistory.push({
-                node: nodeId,
-                type: node.type,
-                value: node.value,
-                result: result,
-                timestamp: Date.now(),
-                status: 'success'
-            });
-            
-            console.log(`✅ ${node.type} result:`, result);
-            return result;
-            
+
         } catch (error) {
             node.error = error.message;
-            node.executed = true;
+            node.executed = true; // Mark as executed but failed
             
-            this.executionHistory.push({
-                node: nodeId,
-                type: node.type,
-                value: node.value,
-                error: error.message,
-                timestamp: Date.now(),
-                status: 'error'
-            });
-            
-            console.log(`❌ ${node.type} error:`, error.message);
-            throw error;
+            // v0.3.0 ERROR FLOW: Check for ERROR_FLOW (⚡) connections
+            const errorConnections = this.connections.filter(conn => conn.from === node.id && conn.type === 'ERROR_FLOW');
+            if (errorConnections.length > 0) {
+                // In a real implementation, this would route the error message as data to the next node
+                console.warn(`💥 Error in node ${node.id} (${node.value}) routed via ERROR_FLOW.`);
+                // For now, we only log and mark node.error
+            } else {
+                 // If no error flow is defined, propagate the error (stop execution)
+                 throw error;
+            }
         }
     }
 
     async executeFunction(node, inputs) {
         const funcName = node.value;
         
-        console.log(`🎯 Calling function: ${funcName}`);
-        console.log(`   Input values:`, inputs);
-        
         if (this.builtinFunctions[funcName]) {
             return this.builtinFunctions[funcName](inputs);
         }
         
+        // v0.3.0 SCOPE/RECURSION STUB: Handle User-Defined Functions (Labels)
+        const funcBlock = this.ast.labels[funcName];
+        if (funcBlock) {
+            // Logic for pushing scope, mapping inputs, and executing block
+            this.callStack.push({ caller: node.id, funcName, inputs });
+            
+            // NOTE: Full function execution requires a major change to the engine's control loop.
+            // For now, we signal that this feature is in development.
+            throw new Error(`Scoped function '${funcName}' found, but full execution is a v0.4.0 feature.`);
+        }
+
         throw new Error(`Unknown function: ${funcName}`);
     }
 
@@ -390,21 +255,18 @@ export class GlyphEngine {
             result: node.result,
             error: node.error,
             executed: node.executed,
-            inputs: node.inputs,
-            outputs: node.outputs
+            // Exclude detailed inputs/outputs to keep JSON small
         }));
 
-        const success = !nodeResults.some(n => n.error);
+        const success = !nodeResults.some(n => n.error && n.type !== 'ERROR_NODE'); // A failed node that didn't use ERROR_FLOW means failure
         const executedNodes = nodeResults.filter(n => n.executed).length;
 
         return {
             success,
             output: this.output,
-            nodes: nodeResults,
             statistics: {
                 totalNodes: this.nodes.size,
                 executedNodes: executedNodes,
-                successRate: (executedNodes / this.nodes.size) * 100,
                 outputCount: this.output.length
             },
             executionHistory: this.executionHistory

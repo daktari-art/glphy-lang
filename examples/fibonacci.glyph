@@ -1,10 +1,37 @@
-# Fibonacci sequence in Glyph
-# Demonstrates pattern matching and recursion
+# examples/fibonacci.glyph - Glyph Language v0.3.0
+
+# This file demonstrates:
+# 1. User-Defined Functions (using labels: fibonacci:, main:)
+# 2. Recursion (function calling itself)
+# 3. Conditional Flow (◯, although logic is simplified)
+
+# --- Function Definition ---
+# fibonacci:
+# Takes one input 'n' (the number in the sequence to calculate)
+# This entire block represents the function body.
 
 fibonacci:
-  [○ n] → [◯ n < 2] ─true─→ [○ 1]
-                    └false─→ [▷ add] ← [▷ fibonacci] ← [▷ subtract] ← [○ n] ← [○ 1]
-                            ← [▷ fibonacci] ← [▷ subtract] ← [○ n] ← [○ 2]
+  # Base Case: If n < 2, return 1 (F(0)=1, F(1)=1 in this simplified model)
+  # [○ n] is the input to the function block
+  [○ n: number] → [◯ is_less_than_2] ← [○ 2: number]
+  
+  # Conditional flow
+  [◯ is_less_than_2] ─true─→ [○ 1: number] → [⤴ return_value] # Returns 1
+                    
+  # Recursive Case: F(n) = F(n-1) + F(n-2)
+  # F(n-1) calculation
+  [○ n] → [▷ subtract] ← [○ 1] → [▷ fibonacci] → [▷ add] 
+  
+  # F(n-2) calculation
+  [○ n] → [▷ subtract] ← [○ 2] → [▷ fibonacci] → [▷ add] 
 
+  # The two recursive calls flow into the ADD node, and the result is returned
+  [▷ add] → [⤴ return_value]
+
+# --- Main Program Execution ---
 main:
-  [○ 10] → [▷ fibonacci] → [⤶ print]
+  # Calculate the 10th Fibonacci number: F(10)
+  [○ 10: number] → [▷ fibonacci] → [⤶ print]
+  # Expected Output: 55 (if full recursion was implemented)
+  # NOTE: As per engine.js, this will throw an error: 
+  # "Scoped function 'fibonacci' found, but full execution is a v0.4.0 feature."

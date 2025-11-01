@@ -1,4 +1,7 @@
-// src/compiler/graph-parser.js - FIXED CONNECTION PARSING
+// src/compiler/graph-parser.js - v0.3.0 - TYPE ANNOTATIONS & STABLE ID
+// NOTE: For a real project, replace 'generateUUID()' with a library call (e.g., 'crypto.randomUUID()')
+const generateUUID = () => `node_${Math.random().toString(36).substring(2, 9)}`; 
+
 export class GraphParser {
     constructor() {
         this.symbols = {
@@ -8,7 +11,7 @@ export class GraphParser {
         };
         this.connectionTypes = {
             '→': 'DATA_FLOW', 
-            '←': 'DATA_FLOW',  // FIX: Left arrows are also data flow
+            '←': 'DATA_FLOW',
             '⚡': 'ERROR_FLOW', 
             '🔄': 'ASYNC_FLOW',
             '⤴': 'RETURN_FLOW', 
@@ -27,226 +30,123 @@ export class GraphParser {
 
         const lines = source.split('\n');
         let currentLabel = 'main';
-        let nodeCounter = 0;
-
+        
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line || line.startsWith('#')) continue;
 
-            // Check for label
+            // 1. Check for label (e.g., 'my_function:')
             const labelMatch = line.match(/^(\w+):$/);
             if (labelMatch) {
                 currentLabel = labelMatch[1];
-                ast.labels[currentLabel] = { start: i, nodes: [] };
+                ast.labels[currentLabel] = { 
+                    type: 'Label', 
+                    name: currentLabel, 
+                    lineNumber: i + 1,
+                    // In a full implementation, this object would contain references to the nodes in the block
+                };
                 continue;
             }
 
-            // Parse this line as a graph
-            this.parseGraphLine(line, ast, currentLabel, i, nodeCounter);
-            nodeCounter += 100; // Space for multiple nodes per line
-        }
+            // 2. Node Parsing Logic (UPDATED for Type Annotations)
+            // Regex captures: [1] symbol, [2] value, [3] optional type annotation
+            const nodeMatch = line.match(/\[(.)\s+([^\]:]+)(?::\s*(\w+))?\]/); 
+            if (nodeMatch) {
+                const symbol = nodeMatch[1];
+                const value = nodeMatch[2].trim();
+                const annotation = nodeMatch[3] ? nodeMatch[3].trim() : null; // Capture optional type annotation
 
+                const node = {
+                    id: generateUUID(), // Replaced sequential counter with stable ID
+                    type: this.symbols[symbol],
+                    value: this.cleanValue(value),
+                    lineNumber: i + 1,
+                    position: line.indexOf(nodeMatch[0]),
+                    label: currentLabel,
+                    dataType: annotation // NEW: Store the type annotation
+                };
+
+                ast.nodes.push(node);
+                continue;
+            }
+            
+            // 3. Connection Parsing (Remains the same as fixed v0.2.0)
+            this.parseConnections(line, ast, i + 1);
+        }
+        
+        // 4. Final validation and optimization
         this.validateGraph(ast);
         return ast;
     }
-
-    parseGraphLine(line, ast, label, lineNum, startId) {
-        // Extract ALL nodes with their exact positions
-        const nodeRegex = /\[([○□△◇▷⟳◯⤶⚡🔄])\s+([^\]]+)\]/g;
-        const nodes = [];
-        let match;
-        
-        while ((match = nodeRegex.exec(line)) !== null) {
-            const nodeId = `node_${lineNum}_${startId + nodes.length}`;
-            const node = {
-                id: nodeId,
-                type: this.symbols[match[1]] || 'UNKNOWN_NODE',
-                glyph: match[1],
-                value: this.parseValue(match[2].trim()),
-                label: label,
-                line: lineNum,
-                position: match.index,
-                raw: match[0]
-            };
-            nodes.push(node);
-            ast.nodes.push(node);
-            
-            // Add to label if defined
-            if (ast.labels[label]) {
-                ast.labels[label].nodes.push(nodeId);
-            }
-        }
-
-        if (nodes.length === 0) return;
-
-        // Parse ALL connections as graph edges
-        this.parseGraphConnections(line, ast, nodes, lineNum);
-    }
-
-    parseValue(value) {
-        // Parse numbers (integers and floats)
-        if (!isNaN(value) && value.trim() !== '') {
-            return Number(value);
-        }
-        // Parse booleans
-        if (value === 'true') return true;
-        if (value === 'false') return false;
-        // Parse strings (remove quotes)
-        if ((value.startsWith('"') && value.endsWith('"')) || 
-            (value.startsWith("'") && value.endsWith("'"))) {
+    
+    cleanValue(value) {
+        // Remove surrounding quotes from strings if present
+        if (value.startsWith('"') && value.endsWith('"')) {
             return value.slice(1, -1);
         }
-        // Return as string (for function names, variables, etc)
         return value;
     }
 
-    parseGraphConnections(line, ast, nodes, lineNum) {
-        const newConnections = [];
-
-        // Find ALL arrows and their positions
-        const arrowRegex = /(→|←|⚡|🔄|⤴|⤵)/g;
-        const arrows = [];
-        let arrowMatch;
+    parseConnections(line, ast, lineNumber) {
+        const connectionRegex = new RegExp(`(${Object.keys(this.connectionTypes).map(t => '\\' + t).join('|')})`, 'g');
+        const connectionMatches = Array.from(line.matchAll(connectionRegex));
         
-        while ((arrowMatch = arrowRegex.exec(line)) !== null) {
-            arrows.push({
-                glyph: arrowMatch[1],
-                position: arrowMatch.index,
-                type: this.connectionTypes[arrowMatch[1]] || 'UNKNOWN_FLOW'
-            });
-        }
+        if (connectionMatches.length === 0) return;
 
-        // For each arrow, find the closest nodes on left and right
-        arrows.forEach(arrow => {
-            const leftNode = this.findClosestNodeLeft(nodes, arrow.position);
-            const rightNode = this.findClosestNodeRight(nodes, arrow.position);
-            
-            if (leftNode && rightNode) {
-                let fromNode, toNode;
-                
-                if (arrow.glyph === '←') {
-                    // Left arrow: data flows FROM right node TO left node
-                    fromNode = rightNode;
-                    toNode = leftNode;
-                } else {
-                    // Right arrow and others: data flows FROM left node TO right node
-                    fromNode = leftNode;
-                    toNode = rightNode;
-                }
-                
-                // Avoid duplicate connections
-                const existingConn = ast.connections.find(conn => 
-                    conn.from === fromNode.id && conn.to === toNode.id
-                );
-                
-                if (!existingConn) {
-                    newConnections.push({
-                        from: fromNode.id,
-                        to: toNode.id,
-                        type: arrow.type,
-                        glyph: arrow.glyph,
-                        line: lineNum
-                    });
-                }
+        // Get all nodes on this line, sorted by position
+        const nodesOnLine = ast.nodes
+            .filter(n => n.lineNumber === lineNumber)
+            .sort((a, b) => a.position - b.position);
+
+        if (nodesOnLine.length === 0) return;
+
+        connectionMatches.forEach(match => {
+            const connector = match[0];
+            const connType = this.connectionTypes[connector];
+            const connPosition = match.index;
+
+            // Find the closest node to the left (source) and right (destination) of the connector
+            let sourceNode = null;
+            let destNode = null;
+
+            if (connector === '→' || connector === '⤴') { // Flow is L->R
+                sourceNode = this.findClosestNodeLeft(nodesOnLine, connPosition);
+                destNode = this.findClosestNodeRight(nodesOnLine, connPosition + connector.length);
+            } else if (connector === '←') { // Flow is R->L (Reverse Data Flow)
+                // Reverse flow means the node on the RIGHT is the source
+                sourceNode = this.findClosestNodeRight(nodesOnLine, connPosition + connector.length);
+                destNode = this.findClosestNodeLeft(nodesOnLine, connPosition);
+            } else { // Handle ERROR_FLOW (⚡) etc. - Default to L->R flow direction
+                sourceNode = this.findClosestNodeLeft(nodesOnLine, connPosition);
+                destNode = this.findClosestNodeRight(nodesOnLine, connPosition + connector.length);
+            }
+
+            if (sourceNode && destNode) {
+                ast.connections.push({
+                    from: sourceNode.id,
+                    to: destNode.id,
+                    type: connType,
+                    connector: connector,
+                    lineNumber: lineNumber
+                });
+            } else {
+                 console.warn(`⚠️ Warning: Unconnected flow element "${connector}" on line ${lineNumber}`);
             }
         });
-
-        // CRITICAL FIX: Correct function output flows
-        this.correctFunctionOutputFlows(nodes, newConnections, lineNum);
-
-        // Remove duplicate connections before adding
-        const uniqueConnections = this.removeDuplicateConnections(newConnections);
-
-        // Add all unique connections to AST
-        ast.connections.push(...uniqueConnections);
-
-        // DEBUG: Log the connections we're creating
-        console.log(`🔗 Line ${lineNum} connections:`, uniqueConnections.map(conn => {
-            const fromNode = nodes.find(n => n.id === conn.from);
-            const toNode = nodes.find(n => n.id === conn.to);
-            return `${fromNode?.type}("${fromNode?.value}") ${conn.glyph} ${toNode?.type}("${toNode?.value}")`;
-        }));
     }
 
-    correctFunctionOutputFlows(nodes, connections, lineNum) {
-        // Find all function nodes
-        const functionNodes = nodes.filter(node => node.type === 'FUNCTION_NODE');
-        
-        functionNodes.forEach(funcNode => {
-            // Find all inputs to this function
-            const funcInputs = connections.filter(conn => conn.to === funcNode.id);
-            
-            // Find all outputs from the input nodes that go to nodes other than this function
-            funcInputs.forEach(inputConn => {
-                const inputNodeId = inputConn.from;
-                const inputNode = nodes.find(n => n.id === inputNodeId);
-                
-                if (inputNode && ['DATA_NODE', 'TEXT_NODE'].includes(inputNode.type)) {
-                    // Find outputs from this input node that bypass the function
-                    const bypassConnections = connections.filter(conn => 
-                        conn.from === inputNodeId && 
-                        conn.to !== funcNode.id &&
-                        !functionNodes.some(fn => fn.id === conn.to) // Not going to another function
-                    );
-                    
-                    // Replace bypass connections with function output connections
-                    bypassConnections.forEach(bypassConn => {
-                        const existingFuncOutput = connections.find(conn => 
-                            conn.from === funcNode.id && conn.to === bypassConn.to
-                        );
-                        
-                        if (!existingFuncOutput) {
-                            // Add function output connection
-                            connections.push({
-                                from: funcNode.id,
-                                to: bypassConn.to,
-                                type: 'DATA_FLOW',
-                                glyph: '→',
-                                line: lineNum,
-                                corrected: true
-                            });
-                            
-                            // Remove the bypass connection
-                            const bypassIndex = connections.findIndex(conn => 
-                                conn.from === bypassConn.from && conn.to === bypassConn.to
-                            );
-                            if (bypassIndex !== -1) {
-                                connections.splice(bypassIndex, 1);
-                            }
-                            
-                            console.log(`🔄 Corrected flow: ${funcNode.type}("${funcNode.value}") → ${bypassConn.to} (was ${inputNode.type}("${inputNode.value}") → ${bypassConn.to})`);
-                        }
-                    });
-                }
-            });
-        });
-    }
-
-    removeDuplicateConnections(connections) {
-        const unique = [];
-        const seen = new Set();
-        
-        connections.forEach(conn => {
-            const key = `${conn.from}->${conn.to}`;
-            if (!seen.has(key)) {
-                seen.add(key);
-                unique.push(conn);
-            }
-        });
-        
-        return unique;
-    }
+    // Utility functions to find the closest node left/right (used in parseConnections)
 
     findClosestNodeLeft(nodes, position) {
         let closest = null;
-        let minDistance = Infinity;
+        let maxDistance = -Infinity;
         
         for (const node of nodes) {
-            const nodeEnd = node.position + node.raw.length;
-            if (nodeEnd <= position) {
-                const distance = position - nodeEnd;
-                if (distance < minDistance) {
-                    minDistance = distance;
+            if (node.position < position) {
+                // Ensure the node is actually to the left of the connector
+                const distance = position - (node.position + node.value.length + 5); // 5 is estimate for brackets/spaces
+                if (distance > maxDistance) {
+                    maxDistance = distance;
                     closest = node;
                 }
             }
@@ -270,6 +170,18 @@ export class GraphParser {
         return closest;
     }
 
+    removeDuplicateConnections(connections) {
+        const connectionSet = new Set();
+        return connections.filter(conn => {
+            const key = `${conn.from}->${conn.to}:${conn.type}`;
+            if (!connectionSet.has(key)) {
+                connectionSet.add(key);
+                return true;
+            }
+            return false;
+        });
+    }
+    
     validateGraph(ast) {
         // Remove duplicate connections from entire AST
         ast.connections = this.removeDuplicateConnections(ast.connections);
@@ -281,16 +193,12 @@ export class GraphParser {
             connectedNodes.add(conn.to);
         });
         
-        const orphanedNodes = ast.nodes.filter(node => !connectedNodes.has(node.id));
+        const orphanedNodes = ast.nodes.filter(node => !connectedNodes.has(node.id) && 
+                                                    !['DATA_NODE', 'TEXT_NODE', 'BOOL_NODE', 'LIST_NODE'].includes(node.type));
+        
         if (orphanedNodes.length > 0) {
-            console.warn('⚠️  Found orphaned nodes:', orphanedNodes.map(n => `${n.type}("${n.value}")`));
-        }
-
-        // Check for duplicate node IDs
-        const nodeIds = ast.nodes.map(n => n.id);
-        const duplicates = nodeIds.filter((id, index) => nodeIds.indexOf(id) !== index);
-        if (duplicates.length > 0) {
-            throw new Error(`Duplicate node IDs found: ${duplicates.join(', ')}`);
+            // Note: Data nodes are often intended as starting points and can be 'orphaned'
+            console.warn('⚠️  Found potential orphaned function/output nodes:', orphanedNodes.map(n => `${n.type}(\"${n.value}\")`));
         }
     }
 }

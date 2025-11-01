@@ -1,193 +1,79 @@
-# Contributing to Glyph Language
+# Contributing to Glyph Language (v0.3.0)
 
-We love your input! We want to make contributing to Glyph as easy and transparent as possible.
+We love your input! We want to make contributing to Glyph as easy and transparent as possible. Your contributions help us build a powerful, intuitive visual programming language.
 
 ## 🎯 Development Setup
 
 ### Prerequisites
-- Node.js 16+ 
+- Node.js **18+** (for ES modules and native test runner)
 - npm or yarn
 - Git
 
 ### Local Development
 ```bash
 # Fork and clone the repository
-git clone https://github.com/daktari-art/glyph-lang.git
+git clone [https://github.com/daktari-art/glyph-lang.git](https://github.com/daktari-art/glyph-lang.git)
 cd glyph-lang
 
 # Install dependencies
 npm install
 
-# Run tests
+# Run the full test suite
 npm test
 
-# Build the project
-npm run build
-```
-
-🐛 Reporting Bugs
-
-Before Submitting a Bug Report
-
-· Check the existing issues
-· Ensure you're using the latest version
-· Reproduce the issue with the latest code
-
-Bug Report Template
-
-```
-**Description**
-A clear and concise description of the bug.
-
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Write this glyph code...
-2. Run this command...
-3. See error...
-
-**Expected Behavior**
-What you expected to happen.
-
-**Environment:**
- - OS: [e.g. Windows, macOS, Linux]
- - Node Version: [e.g. 16.14.0]
- - Glyph Version: [e.g. 0.1.0]
-
-**Additional Context**
-Add any other context about the problem here.
-```
-
-💡 Suggesting Enhancements
-
-Enhancement Request Template
-
-```
-**Problem Statement**
-What problem are you trying to solve?
-
-**Proposed Solution**
-How should this work?
-
-**Alternative Solutions**
-Other ways to solve this problem.
-
-**Additional Context**
-Links, references, examples, etc.
-```
+# Start the development REPL
+glyph repl
 
 🔧 Pull Request Process
-
-1. Fork the Repository
-2. Create a Feature Branch
-   ```bash
-   git checkout -b feature/amazing-feature
-   ```
-3. Follow Code Style
-   · Use 2-space indentation
-   · Write descriptive commit messages
-   · Add tests for new functionality
-4. Update Documentation if needed
-5. Run Tests
-   ```bash
-   npm test
-   ```
-6. Submit Pull Request
-
-PR Template
-
-```
-## Description
-What does this PR do?
-
-## Related Issues
-Fixes # (issue number)
-
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Breaking change
-- [ ] Documentation update
-
-## Testing
-- [ ] Added unit tests
-- [ ] Tested manually
-- [ ] All tests pass
-
-## Documentation
-- [ ] Updated SPECIFICATION.md if needed
-- [ ] Updated README.md if needed
-- [ ] Added code comments
-```
-
+ * Fork the Repository.
+ * Create a Feature Branch (git checkout -b feat/my-new-parser-fix).
+ * Implement your changes, paying attention to:
+   * Type Safety: If modifying the parser or compiler, consider how your change impacts the Type Inference Engine (v0.3.0).
+   * Graph Integrity: Ensure new features maintain the Graph Execution Model (e.g., proper dependency mapping in the AST).
+   * N-ary Consistency: Confirm that new or modified functions can correctly handle multiple inputs.
+ * Write Tests for your changes. All new features require new tests (see the Testing section).
+ * Update Documentation (SPECIFICATION.md, README.md, GETTING_STARTED.md) if your changes introduce new syntax or public features.
+ * Commit your changes using the Conventional Commits standard.
+ * Push your branch and submit a Pull Request.
 🏷️ Commit Convention
-
-We use Conventional Commits:
-
-· feat: New features
-· fix: Bug fixes
-· docs: Documentation changes
-· style: Code style changes (formatting, etc)
-· refactor: Code refactoring
-· test: Adding or updating tests
-· chore: Maintenance tasks
-
-Examples:
-
-```
-feat: add pattern matching support
-fix: resolve parser infinite loop
-docs: update getting started guide
-```
-
+We use Conventional Commits to automate versioning and changelog generation.
+| Prefix | Type | Description |
+|---|---|---|
+| feat | New features | e.g., feat: implement type annotations for data nodes |
+| fix | Bug fixes | e.g., fix: resolve n-ary bug in divide function |
+| docs | Documentation changes | e.g., docs: update roadmap for v0.4.0 |
+| style | Code style changes (formatting, etc) |  |
+| refactor | Code refactoring | e.g., refactor: move function execution to engine-util |
+| test | Adding or updating tests |  |
+| chore | Maintenance tasks | e.g., chore: update node engine version in package.json |
 🧪 Testing
-
+The integrity of Glyph depends on its comprehensive test suite.
 Running Tests
-
-```bash
-# Run all tests
+# Run all tests (uses test-run.js as entry point)
 npm test
 
-# Run tests in watch mode
-npm run test:watch
-
-# Run specific test file
-npx mocha tests/compiler.test.js
-```
+# Start development in watch mode
+npm run dev
 
 Writing Tests
-
-```javascript
-import { expect } from 'chai';
+Please structure your tests using mocha or the native Node.js test runner for simplicity.
+// Example Test Structure
+import { expect } => 'chai';
 import { GlyphCompiler } from '../src/compiler/core.js';
+import { GlyphEngine } from '../src/runtime/engine.js';
 
-describe('GlyphCompiler', () => {
-  it('should parse basic data node', () => {
-    const compiler = new GlyphCompiler();
-    const ast = compiler.parse('[○ 42]');
-    expect(ast.body[0].type).to.equal('DATA_NODE');
+describe('GlyphEngine v0.3.0', () => {
+  it('should correctly handle N-ary subtraction (100 - 10 - 5)', async () => {
+    const code = '[○ 100] → [▷ subtract] ← [○ 10] ← [○ 5] → [⤶ print]';
+    // ... setup and run engine ...
+    expect(result.output[0]).to.include('85'); 
   });
 });
-```
-
-📚 Documentation
-
-We value good documentation! Please update:
-
-· SPECIFICATION.md for language changes
-· README.md for user-facing features
-· Code comments for complex logic
 
 🏆 Recognition
-
 All contributors will be recognized in our:
-
-· GitHub contributors list
-· Release notes
-· Documentation (if significant contribution)
-
-❓ Questions?
-
-· Open an issue for bug reports and feature requests
-· Check existing documentation before asking
-
+ * GitHub contributors list
+ * Release notes (if code-related)
+ * Documentation (if significant contribution)
 Thank you for contributing to Glyph! 🎉
+
