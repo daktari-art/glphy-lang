@@ -1,0 +1,50 @@
+{
+    "Glyph Data Node": {
+        "prefix": [
+            "data",
+            "o"
+        ],
+        "body": "[○ ${1:value}${2:: number}]",
+        "description": "Inserts a Data Node [○ value: type]"
+    },
+    "Glyph Text Node": {
+        "prefix": [
+            "text",
+            "t"
+        ],
+        "body": "[□ \"${1:string}\"]",
+        "description": "Inserts a Text Node [□ \"string\"]"
+    },
+    "Glyph Function Node": {
+        "prefix": [
+            "func",
+            "f"
+        ],
+        "body": "[▷ ${1:function_name}]",
+        "description": "Inserts a Function Node [▷ name]"
+    },
+    "Glyph Flow Right (->)": {
+        "prefix": [
+            "->",
+            "arrow"
+        ],
+        "body": "→",
+        "description": "Inserts the Data Flow connector (→)"
+    },
+    "Glyph Reverse Flow (<-)": {
+        "prefix": [
+            "<-",
+            "input"
+        ],
+        "body": "←",
+        "description": "Inserts the Reverse Data Flow connector (←)"
+    },
+    "Glyph Error Flow (!->)": {
+        "prefix": [
+            "!->",
+            "err"
+        ],
+        "body": "⚡",
+        "description": "Inserts the Error Flow connector (⚡)"
+    }
+}
